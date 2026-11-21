@@ -1,0 +1,931 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>呼吸動圖</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&display=swap">
+<style>
+/* Layout: a large preview stage on the left with the breath controls beside it; stacks to one column on phones. */
+:root {
+  --bg: #E8EEF0;
+  --panel: #F6F9FA;
+  --ink: #102329;
+  --muted: #566A71;
+  --line: #C6D4D9;
+  --accent: #CF3359;
+  --accent-ink: #FFFFFF;
+  --chk-a: #DAE4E7;
+  --chk-b: #E8EEF0;
+  --halo: rgba(255,255,255,.85);
+  --hair: #1B8197;
+  --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --font-display: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
+  --font-mono: "DM Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E181C; --panel: #142126; --ink: #E4EEF1; --muted: #8FA5AC; --line: #27393F;
+    --accent: #F0708F; --accent-ink: #1B0A10; --chk-a: #172830; --chk-b: #122027; --halo: rgba(0,0,0,.55); --hair: #5CC8DE;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E181C; --panel: #142126; --ink: #E4EEF1; --muted: #8FA5AC; --line: #27393F;
+  --accent: #F0708F; --accent-ink: #1B0A10; --chk-a: #172830; --chk-b: #122027; --halo: rgba(0,0,0,.55); --hair: #5CC8DE;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.top h1 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(30px, 6vw, 46px);
+  line-height: 1.15;
+  letter-spacing: .04em;
+  margin: 0 0 8px;
+  text-wrap: balance;
+}
+.top p { margin: 0; max-width: 40em; color: var(--muted); text-wrap: pretty; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+.stage-col, .panel { min-width: 0; }
+.stage-col { display: flex; flex-direction: column; gap: 12px; }
+
+.stage {
+  position: relative;
+  display: grid; place-items: center;
+  padding: 20px;
+  min-height: 260px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background-color: var(--chk-b);
+  background-image: conic-gradient(var(--chk-a) 25%, transparent 0 50%, var(--chk-a) 0 75%, transparent 0);
+  background-size: 22px 22px;
+}
+.stage.over { outline: 2px dashed var(--accent); outline-offset: -6px; }
+.frame {
+  position: relative;
+  width: min(100%, calc(62vh * var(--ar, 1)));
+  max-width: 100%;
+  aspect-ratio: var(--ar, 1);
+  touch-action: none;
+  cursor: crosshair;
+  user-select: none;
+}
+.frame canvas { display: block; width: 100%; height: 100%; }
+.ring {
+  position: absolute;
+  aspect-ratio: 1;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 1px var(--halo), inset 0 0 0 1px var(--halo);
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform;
+}
+.ring i { position: absolute; left: 50%; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 1.5px var(--halo); }
+.hmark { position: absolute; border: 2px dashed var(--hair); border-top: 2px solid var(--hair); border-radius: 0 0 45% 45% / 0 0 30% 30%; box-shadow: 0 0 0 1px var(--halo); pointer-events: none; }
+.hmark i { position: absolute; left: 50%; top: 0; width: 9px; height: 9px; margin: -5px 0 0 -4.5px; border-radius: 50%; background: var(--hair); box-shadow: 0 0 0 1.5px var(--halo); }
+.sub { margin: 0; padding-top: 14px; border-top: 1px dashed var(--line); font-weight: 700; font-size: 13px; color: var(--hair); letter-spacing: .08em; }
+.hmark.sel, .ring.sel { border-width: 3px; }
+.tag {
+  position: absolute; left: 10px; top: 10px;
+  font: 500 11px/1 var(--font-mono); letter-spacing: .08em;
+  padding: 5px 7px; border-radius: 4px;
+  background: var(--panel); color: var(--muted); border: 1px solid var(--line);
+}
+
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.bar .hint { color: var(--muted); font-size: 13px; flex: 1 1 14em; min-width: 0; }
+.btn {
+  font: 500 14px/1 var(--font-body);
+  color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 6px;
+  padding: 10px 14px; cursor: pointer;
+}
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn:disabled { opacity: .55; cursor: progress; }
+.btn.block { width: 100%; padding: 14px 16px; font-size: 15px; }
+
+.meter { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 12px 14px 10px; }
+.meter svg { display: block; width: 100%; height: auto; }
+.meter .base { stroke: var(--line); stroke-width: 1; }
+.meter .inh, .meter .exh { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.meter .inh { stroke: var(--accent); }
+.meter .exh { stroke: var(--muted); }
+.meter .dot { fill: var(--accent); stroke: var(--panel); stroke-width: 2; }
+.meter-row { display: flex; justify-content: space-between; gap: 12px; font: 400 12px/1.4 var(--font-mono); color: var(--muted); margin-top: 6px; letter-spacing: .04em; }
+.meter-row b { color: var(--ink); font-weight: 500; }
+
+.panel { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px 18px 18px; }
+.group { display: flex; flex-direction: column; gap: 14px; padding: 16px 0; border-top: 1px solid var(--line); }
+.group:first-child { border-top: 0; }
+.group h2 { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .16em; color: var(--muted); }
+.ctl { display: flex; flex-direction: column; gap: 4px; }
+.ctl .row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.ctl label, .ctl .lbl { font-weight: 500; }
+.ctl output { font: 500 13px/1 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+.ctl small { color: var(--muted); font-size: 12px; }
+input[type=range] { width: 100%; accent-color: var(--accent); margin: 2px 0; }
+select, input[type=color] {
+  font: 400 14px/1.2 var(--font-body); color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; min-width: 0; max-width: 100%;
+}
+input[type=color] { padding: 2px; width: 44px; height: 36px; cursor: pointer; }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--bg); }
+.seg label { position: relative; cursor: pointer; }
+.seg input { position: absolute; opacity: 0; inset: 0; }
+.seg span { display: block; padding: 8px 14px; font-size: 14px; }
+.seg input:checked + span { background: var(--ink); color: var(--bg); }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -2px; }
+.seg input:disabled + span { opacity: .45; }
+.bgrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.est { font: 400 12px/1.4 var(--font-mono); color: var(--muted); letter-spacing: .03em; }
+
+.progress { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: var(--accent); }
+.status { font-size: 13px; color: var(--muted); min-height: 1.4em; }
+
+.result { display: flex; flex-direction: column; gap: 10px; padding-top: 16px; border-top: 1px solid var(--line); }
+.result figure { margin: 0; display: grid; place-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 8px;
+  background-color: var(--chk-b); background-image: conic-gradient(var(--chk-a) 25%, transparent 0 50%, var(--chk-a) 0 75%, transparent 0); background-size: 18px 18px; }
+.result img { display: block; max-width: 100%; max-height: 320px; height: auto; width: auto; }
+.result .meta { font: 400 12px/1.4 var(--font-mono); color: var(--muted); letter-spacing: .03em; }
+.result .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.result a.btn { text-decoration: none; display: inline-block; }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .frame { width: min(100%, calc(52vh * var(--ar, 1))); }
+}
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+</style>
+
+<main class="wrap">
+  <header class="top">
+    <h1>呼吸動圖</h1>
+    <p>放入一張角色圖，胸口會跟著呼吸起伏、頭髮跟著輕輕飄動，再輸出成會一直循環的 GIF。圖片只在你的瀏覽器裡處理，不會上傳。</p>
+  </header>
+
+  <div class="layout">
+    <section class="stage-col" aria-label="預覽">
+      <div class="stage" id="stage">
+        <span class="tag" id="sampleTag">範例圖</span>
+        <div class="frame" id="frame">
+          <canvas id="cv" role="img" aria-label="呼吸動畫預覽"></canvas>
+          <div class="ring" id="ring"><i></i></div>
+          <div class="hmark" id="hmL"><i></i></div><div class="hmark" id="hmR"><i></i></div>
+        </div>
+      </div>
+      <div class="bar">
+        <button class="btn" id="playBtn" type="button">暫停</button>
+        <button class="btn" id="pickBtn" type="button">換圖片</button>
+        <input type="file" id="file" accept="image/*" hidden>
+        <span class="hint">拖進圖片、貼上，或按「換圖片」。先在右側選好要移動的對象（呼吸中心或髮根），再點選或拖曳畫面。</span>
+      </div>
+      <div class="meter" aria-hidden="true">
+        <svg viewBox="0 0 300 60" id="meterSvg">
+          <line class="base" x1="2" y1="54" x2="298" y2="54"></line>
+          <path class="inh" id="pInh"></path>
+          <path class="exh" id="pExh"></path>
+          <circle class="dot" id="dot" r="5" cx="2" cy="54"></circle>
+        </svg>
+        <div class="meter-row"><span id="phase"><b>吸氣</b></span><span id="bpm"></span></div>
+      </div>
+    </section>
+
+    <aside class="panel" aria-label="設定">
+      <div class="group">
+        <h2>呼吸</h2>
+        <div class="ctl">
+          <div class="row"><label for="amp">起伏幅度</label><output id="ampO" for="amp"></output></div>
+          <input type="range" id="amp" min="1" max="12" step="0.5" value="4.5">
+        </div>
+        <div class="ctl">
+          <div class="row"><label for="rad">影響範圍</label><output id="radO" for="rad"></output></div>
+          <input type="range" id="rad" min="12" max="50" step="1" value="26">
+          <small>範圍越大，整個上半身越一起動；越小只有胸口鼓起。</small>
+        </div>
+        <div class="ctl">
+          <div class="row"><label for="per">一次呼吸</label><output id="perO" for="per"></output></div>
+          <input type="range" id="per" min="1.5" max="6" step="0.1" value="3.5">
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>頭髮</h2>
+        <div class="ctl">
+          <span class="lbl" id="hOnLbl">頭髮飄動</span>
+          <div class="seg" role="group" aria-labelledby="hOnLbl">
+            <label><input type="radio" name="hon" id="hOn" value="1" checked><span>開</span></label>
+            <label><input type="radio" name="hon" id="hOff" value="0"><span>關</span></label>
+          </div>
+        </div>
+        <h3 class="sub">左髮根</h3>
+        <div class="ctl">
+          <span class="lbl" id="hOnLblL">左髮根飄動</span>
+          <div class="seg" role="group" aria-labelledby="hOnLblL">
+            <label><input type="radio" name="honL" id="hOnL" value="1" checked><span>開</span></label>
+            <label><input type="radio" name="honL" id="hOffL" value="0"><span>關</span></label>
+          </div>
+        </div>
+        <div class="ctl">
+          <div class="row"><label for="hAmpL">飄動幅度</label><output id="hAmpOL" for="hAmpL"></output></div>
+          <input type="range" id="hAmpL" min="0.5" max="8" step="0.5" value="3">
+        </div>
+        <div class="ctl">
+          <div class="row"><label for="hLenL">髮絲長度</label><output id="hLenOL" for="hLenL"></output></div>
+          <input type="range" id="hLenL" min="10" max="60" step="1" value="30">
+        </div>
+        <div class="ctl">
+          <div class="row"><label for="hWidL">髮絲寬度</label><output id="hWidOL" for="hWidL"></output></div>
+          <input type="range" id="hWidL" min="4" max="25" step="1" value="9">
+        </div>
+        <div class="ctl">
+          <label for="hKL">擺動速度</label>
+          <select id="hKL">
+            <option value="1">每次呼吸擺 1 下</option>
+            <option value="2" selected>每次呼吸擺 2 下</option>
+            <option value="3">每次呼吸擺 3 下</option>
+          </select>
+        </div>
+        <h3 class="sub">右髮根</h3>
+        <div class="ctl">
+          <span class="lbl" id="hOnLblR">右髮根飄動</span>
+          <div class="seg" role="group" aria-labelledby="hOnLblR">
+            <label><input type="radio" name="honR" id="hOnR" value="1" checked><span>開</span></label>
+            <label><input type="radio" name="honR" id="hOffR" value="0"><span>關</span></label>
+          </div>
+        </div>
+        <div class="ctl">
+          <div class="row"><label for="hAmpR">飄動幅度</label><output id="hAmpOR" for="hAmpR"></output></div>
+          <input type="range" id="hAmpR" min="0.5" max="8" step="0.5" value="3">
+        </div>
+        <div class="ctl">
+          <div class="row"><label for="hLenR">髮絲長度</label><output id="hLenOR" for="hLenR"></output></div>
+          <input type="range" id="hLenR" min="10" max="60" step="1" value="30">
+        </div>
+        <div class="ctl">
+          <div class="row"><label for="hWidR">髮絲寬度</label><output id="hWidOR" for="hWidR"></output></div>
+          <input type="range" id="hWidR" min="4" max="25" step="1" value="9">
+        </div>
+        <div class="ctl">
+          <label for="hKR">擺動速度</label>
+          <select id="hKR">
+            <option value="1">每次呼吸擺 1 下</option>
+            <option value="2" selected>每次呼吸擺 2 下</option>
+            <option value="3">每次呼吸擺 3 下</option>
+          </select>
+        </div>
+        <div class="ctl">
+          <span class="lbl" id="tgLbl">畫面點選時移動</span>
+          <div class="seg" role="group" aria-labelledby="tgLbl">
+            <label><input type="radio" name="tg" id="tgB" value="b" checked><span>呼吸中心</span></label>
+            <label><input type="radio" name="tg" id="tgL" value="l"><span>左髮根</span></label>
+            <label><input type="radio" name="tg" id="tgR" value="r"><span>右髮根</span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>輸出</h2>
+        <div class="two">
+          <div class="ctl">
+            <label for="size">尺寸（長邊）</label>
+            <select id="size">
+              <option value="240">240 px</option>
+              <option value="360" selected>360 px</option>
+              <option value="480">480 px</option>
+              <option value="640">640 px</option>
+            </select>
+          </div>
+          <div class="ctl">
+            <label for="fps">流暢度</label>
+            <select id="fps">
+              <option value="5">20 格/秒</option>
+              <option value="4" selected>25 格/秒</option>
+              <option value="3">33 格/秒</option>
+            </select>
+          </div>
+        </div>
+        <div class="ctl">
+          <span class="lbl" id="bgLbl">背景</span>
+          <div class="bgrow" role="group" aria-labelledby="bgLbl">
+            <div class="seg">
+              <label><input type="radio" name="bgm" id="bgT" value="t" checked><span>透明</span></label>
+              <label><input type="radio" name="bgm" id="bgC" value="c"><span>純色</span></label>
+            </div>
+            <input type="color" id="bgc" value="#ffffff" aria-label="背景顏色">
+          </div>
+          <small id="bgNote"></small>
+        </div>
+        <div class="est" id="est"></div>
+      </div>
+
+      <div class="group">
+        <button class="btn primary block" id="gen" type="button">產生 GIF</button>
+        <div class="progress" id="prog" hidden><i id="progFill"></i></div>
+        <div class="status" id="status" role="status" aria-live="polite"></div>
+      </div>
+
+      <div class="result" id="result" hidden>
+        <figure><img id="out" alt="輸出的呼吸 GIF"></figure>
+        <div class="meta" id="outMeta"></div>
+        <div class="actions">
+          <button class="btn primary" id="saveBtn" type="button" hidden>儲存 GIF</button>
+          <a class="btn primary" id="dl" download="breathing.gif" hidden>下載 GIF</a>
+          <span class="meta" id="saveNote"></span>
+        </div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var cv = $('cv'), ctx = cv.getContext('2d');
+  var frameEl = $('frame'), ringEl = $('ring'), stageEl = $('stage');
+  var BREATH_IN = 0.42;
+
+  var S = {
+    src: null, sw: 600, sh: 800, hasAlpha: true,
+    cx: 0.5, cy: 0.66, amp: 0.045, r: 0.26, period: 3.5,
+    size: 360, cs: 4, transparent: true, bg: '#ffffff',
+    playing: !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches),
+    busy: false,
+    hair: true, hAmp: 0.03, hLen: 0.30, hWid: 0.09, hK: 2, target: 'b',
+    roots: [{ x: 0.27, y: 0.38, phi: 0, on: true, amp: 0.03, len: 0.30, wid: 0.09, k: 2 }, { x: 0.73, y: 0.38, phi: 1.9, on: true, amp: 0.03, len: 0.30, wid: 0.09, k: 2 }]
+  };
+
+  /* ---------- breath curve: 42% in, 58% out, eased ---------- */
+  function ease(x) { return (1 - Math.cos(Math.PI * x)) / 2; }
+  function breath(t) {
+    return t < BREATH_IN ? ease(t / BREATH_IN) : ease(1 - (t - BREATH_IN) / (1 - BREATH_IN));
+  }
+
+  /* ---------- sample character (original drawing) ---------- */
+  function makeSample() {
+    var c = document.createElement('canvas'); c.width = 600; c.height = 800;
+    var g = c.getContext('2d');
+    function ell(x, y, rx, ry, fill) { g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.fillStyle = fill; g.fill(); }
+    var hair = '#3A2D4C', skin = '#F0C6A4';
+    ell(300, 262, 152, 172, hair);
+    g.fillStyle = hair;
+    g.beginPath(); g.moveTo(150, 260); g.quadraticCurveTo(116, 470, 172, 566); g.lineTo(216, 522); g.lineTo(216, 300); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(450, 260); g.quadraticCurveTo(484, 470, 428, 566); g.lineTo(384, 522); g.lineTo(384, 300); g.closePath(); g.fill();
+    g.fillStyle = skin; g.fillRect(268, 380, 64, 72);
+    g.fillStyle = '#2F6676';
+    g.beginPath(); g.roundRect(136, 470, 72, 282, 36); g.fill();
+    g.beginPath(); g.roundRect(392, 470, 72, 282, 36); g.fill();
+    ell(172, 760, 30, 32, skin); ell(428, 760, 30, 32, skin);
+    g.fillStyle = '#3E7D8E';
+    g.beginPath(); g.moveTo(150, 800); g.lineTo(165, 570); g.quadraticCurveTo(172, 452, 300, 438);
+    g.quadraticCurveTo(428, 452, 435, 570); g.lineTo(450, 800); g.closePath(); g.fill();
+    g.fillStyle = '#F7F2E8';
+    g.beginPath(); g.moveTo(250, 440); g.lineTo(300, 504); g.lineTo(350, 440); g.closePath(); g.fill();
+    ell(300, 600, 32, 32, '#F2B94B'); ell(300, 600, 17, 17, '#3E7D8E');
+    ell(300, 272, 126, 136, '#F6D2B2');
+    g.fillStyle = hair;
+    g.beginPath(); g.moveTo(170, 262); g.quadraticCurveTo(178, 118, 300, 114); g.quadraticCurveTo(422, 118, 430, 262);
+    g.quadraticCurveTo(392, 196, 330, 206); g.quadraticCurveTo(300, 176, 262, 208); g.quadraticCurveTo(206, 196, 170, 262); g.closePath(); g.fill();
+    ell(252, 298, 14, 20, '#25202E'); ell(348, 298, 14, 20, '#25202E');
+    ell(257, 291, 5, 6, '#fff'); ell(353, 291, 5, 6, '#fff');
+    ell(222, 334, 20, 12, 'rgba(226,92,110,.28)'); ell(378, 334, 20, 12, 'rgba(226,92,110,.28)');
+    g.strokeStyle = '#A8574F'; g.lineWidth = 5; g.lineCap = 'round';
+    g.beginPath(); g.arc(300, 340, 16, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
+    return c;
+  }
+
+  /* ---------- image preparation ---------- */
+  function prepare(longSide) {
+    var k = longSide / Math.max(S.sw, S.sh);
+    var w = Math.max(8, Math.round(S.sw * k)), h = Math.max(8, Math.round(S.sh * k));
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    var x = c.getContext('2d', { willReadFrequently: true });
+    x.imageSmoothingQuality = 'high';
+    x.drawImage(S.src, 0, 0, w, h);
+    return { w: w, h: h, data: x.getImageData(0, 0, w, h) };
+  }
+  function detectAlpha() {
+    var k = Math.min(1, 256 / Math.max(S.sw, S.sh));
+    var w = Math.max(1, Math.round(S.sw * k)), h = Math.max(1, Math.round(S.sh * k));
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    var x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(S.src, 0, 0, w, h);
+    var d = x.getImageData(0, 0, w, h).data;
+    for (var i = 3; i < d.length; i += 4) if (d[i] < 250) return true;
+    return false;
+  }
+
+  /* ---------- the breathing warp: a soft bulge around the chest ---------- */
+  function warp(src, dst, w, h, f, P) {
+    var s32 = new Uint32Array(src.buffer, src.byteOffset, w * h);
+    var o32 = new Uint32Array(dst.buffer, dst.byteOffset, w * h);
+    o32.set(s32);
+    var a = P.amp * f;
+    if (a < 0.0005) return;
+    var cx = P.cx * w, cy = P.cy * h, R = P.r * Math.max(w, h), iR2 = 1 / (R * R), lift = a * R * 0.2;
+    var x0 = Math.max(0, Math.floor(cx - 2.6 * R)), x1 = Math.min(w - 1, Math.ceil(cx + 2.6 * R));
+    var y0 = Math.max(0, Math.floor(cy - 2.6 * R)), y1 = Math.min(h - 1, Math.ceil(cy + 2.6 * R));
+    var wm = w - 1, hm = h - 1;
+    for (var y = y0; y <= y1; y++) {
+      var dy = y + 0.5 - cy;
+      for (var x = x0; x <= x1; x++) {
+        var dx = x + 0.5 - cx;
+        var d2 = (dx * dx + dy * dy) * iR2;
+        if (d2 > 6.5) continue;
+        var g = Math.exp(-d2);
+        var s = 1 + a * g;
+        var u = cx + dx / s - 0.5, v = cy + dy / s + lift * g - 0.5;
+        if (u < 0) u = 0; else if (u > wm) u = wm;
+        if (v < 0) v = 0; else if (v > hm) v = hm;
+        var xi = u | 0, yi = v | 0, fx = u - xi, fy = v - yi;
+        var xj = xi < wm ? xi + 1 : xi, yj = yi < hm ? yi + 1 : yi;
+        var i00 = (yi * w + xi) * 4, i10 = (yi * w + xj) * 4, i01 = (yj * w + xi) * 4, i11 = (yj * w + xj) * 4;
+        var w00 = (1 - fx) * (1 - fy) * src[i00 + 3], w10 = fx * (1 - fy) * src[i10 + 3];
+        var w01 = (1 - fx) * fy * src[i01 + 3], w11 = fx * fy * src[i11 + 3];
+        var A = w00 + w10 + w01 + w11, o = (y * w + x) * 4;
+        if (A < 0.0001) { dst[o] = 0; dst[o + 1] = 0; dst[o + 2] = 0; dst[o + 3] = 0; continue; }
+        var iA = 1 / A;
+        dst[o] = (src[i00] * w00 + src[i10] * w10 + src[i01] * w01 + src[i11] * w11) * iA;
+        dst[o + 1] = (src[i00 + 1] * w00 + src[i10 + 1] * w10 + src[i01 + 1] * w01 + src[i11 + 1] * w11) * iA;
+        dst[o + 2] = (src[i00 + 2] * w00 + src[i10 + 2] * w10 + src[i01 + 2] * w01 + src[i11 + 2] * w11) * iA;
+        dst[o + 3] = A;
+      }
+    }
+  }
+  /* ---------- hair sway: root pinned, tip swings; a travelling wave runs down each strand ---------- */
+  function hairWarp(src, dst, w, h, phase, P) {
+    var s32 = new Uint32Array(src.buffer, src.byteOffset, w * h);
+    var o32 = new Uint32Array(dst.buffer, dst.byteOffset, w * h);
+    o32.set(s32);
+    var M = Math.max(w, h), TAU = Math.PI * 2;
+    var wm = w - 1, hm = h - 1;
+    for (var k = 0; k < P.roots.length; k++) {
+      var rt = P.roots[k];
+      if (!rt.on) continue;
+      var A = rt.amp * M, rx = rt.wid * M, ry = rt.len * M;
+      if (A < 0.01) continue;
+      var cx = rt.x * w, cy = rt.y * h;
+      var x0 = Math.max(0, Math.floor(cx - rx * 1.6 - A * 1.6)), x1 = Math.min(w - 1, Math.ceil(cx + rx * 1.6 + A * 1.6));
+      var y0 = Math.max(0, Math.floor(cy)), y1 = Math.min(h - 1, Math.ceil(cy + ry * 1.8));
+      for (var y = y0; y <= y1; y++) {
+        var t = (y + 0.5 - cy) / ry;
+        if (t <= 0) continue;
+        var grow = t >= 1 ? 1 : t * t * (3 - 2 * t);
+        var fade = t <= 1 ? 1 : Math.exp(-Math.pow((t - 1) * 2.2, 2));
+        var wy = grow * fade;
+        var tt = t > 1.2 ? 1.2 : t;
+        var wave = (Math.sin(TAU * rt.k * phase - 2.4 * tt + rt.phi) + 0.3 * Math.sin(TAU * 2 * rt.k * phase - 4.2 * tt + rt.phi * 1.7)) / 1.3;
+        for (var x = x0; x <= x1; x++) {
+          var u = (x + 0.5 - cx) / rx, u2 = u * u;
+          var wx = Math.exp(-u2 * u2);
+          if (wx < 0.01) continue;
+          var sx = x + 0.5 - A * wy * wx * wave - 0.5, sy = y;
+          if (sx < 0) sx = 0; else if (sx > wm) sx = wm;
+          var xi = sx | 0, fx = sx - xi, xj = xi < wm ? xi + 1 : xi;
+          var i0 = (y * w + xi) * 4, i1 = (y * w + xj) * 4;
+          var w0 = (1 - fx) * src[i0 + 3], w1 = fx * src[i1 + 3], Aa = w0 + w1, o = (y * w + x) * 4;
+          if (Aa < 0.0001) { dst[o] = 0; dst[o + 1] = 0; dst[o + 2] = 0; dst[o + 3] = 0; continue; }
+          var iA = 1 / Aa;
+          dst[o] = (src[i0] * w0 + src[i1] * w1) * iA;
+          dst[o + 1] = (src[i0 + 1] * w0 + src[i1 + 1] * w1) * iA;
+          dst[o + 2] = (src[i0 + 2] * w0 + src[i1 + 2] * w1) * iA;
+          dst[o + 3] = Aa;
+        }
+      }
+    }
+  }
+  function renderFrame(src, mid, dst, w, h, f, ph) {
+    if (S.hair) { warp(src, mid, w, h, f, params()); hairWarp(mid, dst, w, h, ph, hairParams()); }
+    else warp(src, dst, w, h, f, params());
+  }
+  function hairParams() { return { roots: S.roots }; }
+  function params() { return { amp: S.amp, cx: S.cx, cy: S.cy, r: S.r }; }
+  function flatten(d, bg) {
+    for (var i = 0; i < d.length; i += 4) {
+      var a = d[i + 3];
+      if (a === 255) continue;
+      var k = a / 255;
+      d[i] = d[i] * k + bg[0] * (1 - k);
+      d[i + 1] = d[i + 1] * k + bg[1] * (1 - k);
+      d[i + 2] = d[i + 2] * k + bg[2] * (1 - k);
+      d[i + 3] = 255;
+    }
+  }
+  function hexToRgb(hex) {
+    var n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+
+  /* ---------- live preview ---------- */
+  var pv = null, pvOut = null, pvMid = null, phase = 0, curF = 0, last = 0;
+  function rebuildPreview() {
+    pv = prepare(Math.min(S.size, 480));
+    cv.width = pv.w; cv.height = pv.h;
+    pvOut = new ImageData(pv.w, pv.h); pvMid = new ImageData(pv.w, pv.h);
+    frameEl.style.setProperty('--ar', (pv.w / pv.h).toFixed(4));
+    paintBg();
+    placeRing();
+    draw();
+  }
+  function draw() {
+    renderFrame(pv.data.data, pvMid.data, pvOut.data, pv.w, pv.h, curF, phase);
+    ctx.putImageData(pvOut, 0, 0);
+    updateRing();
+    updateMeter();
+  }
+  function paintBg() {
+    cv.style.background = (S.transparent && S.hasAlpha) ? 'transparent' : S.bg;
+  }
+  function placeRing() {
+    var w = pv ? pv.w : 1, h = pv ? pv.h : 1;
+    ringEl.style.left = (S.cx * 100) + '%';
+    ringEl.style.top = (S.cy * 100) + '%';
+    ringEl.style.width = (200 * S.r * Math.max(w, h) / w) + '%';
+    var M = Math.max(w, h), marks = [$('hmL'), $('hmR')];
+    ringEl.classList.toggle('sel', S.target === 'b');
+    marks.forEach(function (el, i) {
+      var rt = S.roots[i], wp = 2 * rt.wid * M / w * 100;
+      el.hidden = !S.hair || !rt.on;
+      el.style.width = wp + '%';
+      el.style.height = (rt.len * M / h * 100) + '%';
+      el.style.left = (rt.x * 100 - wp / 2) + '%';
+      el.style.top = (rt.y * 100) + '%';
+      el.classList.toggle('sel', S.target === (i ? 'r' : 'l'));
+    });
+  }
+  function updateRing() {
+    ringEl.style.transform = 'translate(-50%,-50%) scale(' + (1 + S.amp * 1.6 * curF).toFixed(4) + ')';
+  }
+
+  /* ---------- breath meter ---------- */
+  var MX0 = 2, MW = 296, MY0 = 54, MH = 44;
+  function curvePath(t0, t1) {
+    var pts = [], n = 48;
+    for (var i = 0; i <= n; i++) {
+      var t = t0 + (t1 - t0) * i / n;
+      pts.push((MX0 + t * MW).toFixed(1) + ',' + (MY0 - breath(t) * MH).toFixed(1));
+    }
+    return 'M' + pts.join(' L');
+  }
+  $('pInh').setAttribute('d', curvePath(0, BREATH_IN));
+  $('pExh').setAttribute('d', curvePath(BREATH_IN, 1));
+  function updateMeter() {
+    $('dot').setAttribute('cx', (MX0 + phase * MW).toFixed(1));
+    $('dot').setAttribute('cy', (MY0 - curF * MH).toFixed(1));
+    $('phase').innerHTML = '<b>' + (phase < BREATH_IN ? '吸氣' : '吐氣') + '</b>';
+  }
+
+  function tick(now) {
+    requestAnimationFrame(tick);
+    if (!last) last = now;
+    var dt = now - last; last = now;
+    if (!S.playing || S.busy || !pv) return;
+    phase = (phase + dt / (S.period * 1000)) % 1;
+    curF = breath(phase);
+    draw();
+  }
+
+  /* ---------- controls ---------- */
+  function frameCount() { return Math.max(4, Math.round(S.period * 100 / S.cs)); }
+  function dims() {
+    var k = S.size / Math.max(S.sw, S.sh);
+    return [Math.max(8, Math.round(S.sw * k)), Math.max(8, Math.round(S.sh * k))];
+  }
+  function refreshLabels() {
+    $('ampO').textContent = (S.amp * 100).toFixed(1) + '%';
+    $('radO').textContent = Math.round(S.r * 100) + '%';
+    $('perO').textContent = S.period.toFixed(1) + ' 秒';
+    $('bpm').textContent = '每分鐘 ' + Math.round(60 / S.period) + ' 次';
+    ['L', 'R'].forEach(function (sd, i) {
+      var rt = S.roots[i];
+      $('hAmpO' + sd).textContent = (rt.amp * 100).toFixed(1) + '%';
+      $('hLenO' + sd).textContent = Math.round(rt.len * 100) + '%';
+      $('hWidO' + sd).textContent = Math.round(rt.wid * 100) + '%';
+      $('hOn' + sd).disabled = $('hOff' + sd).disabled = !S.hair;
+      ['hAmp', 'hLen', 'hWid', 'hK'].forEach(function (id) { $(id + sd).disabled = !S.hair || !rt.on; });
+    });
+    var d = dims();
+    $('est').textContent = frameCount() + ' 幀 · ' + d[0] + '×' + d[1] + ' px · 約 ' + S.period.toFixed(1) + ' 秒一圈';
+    var canT = S.hasAlpha;
+    $('bgT').disabled = !canT;
+    if (!canT && $('bgT').checked) { $('bgC').checked = true; S.transparent = false; }
+    $('bgc').disabled = (S.transparent && S.hasAlpha) || !S.hasAlpha;
+    $('bgNote').textContent = S.hasAlpha ? '透明背景的 GIF 邊緣只有全透明或不透明兩種。' : '這張圖沒有透明區域，不需要設定背景。';
+  }
+  function afterChange() {
+    refreshLabels();
+    placeRing();
+    if (pv && (!S.playing || S.busy)) draw();
+  }
+  $('amp').addEventListener('input', function (e) { S.amp = +e.target.value / 100; afterChange(); });
+  $('rad').addEventListener('input', function (e) { S.r = +e.target.value / 100; afterChange(); });
+  $('per').addEventListener('input', function (e) { S.period = +e.target.value; afterChange(); });
+  ['L', 'R'].forEach(function (sd, i) {
+    var rt = S.roots[i];
+    $('hAmp' + sd).addEventListener('input', function (e) { rt.amp = +e.target.value / 100; afterChange(); });
+    $('hLen' + sd).addEventListener('input', function (e) { rt.len = +e.target.value / 100; afterChange(); });
+    $('hWid' + sd).addEventListener('input', function (e) { rt.wid = +e.target.value / 100; afterChange(); });
+    $('hK' + sd).addEventListener('change', function (e) { rt.k = +e.target.value; afterChange(); });
+    $('hOn' + sd).addEventListener('change', function () { rt.on = true; afterChange(); });
+    $('hOff' + sd).addEventListener('change', function () { rt.on = false; afterChange(); });
+  });
+  $('hOn').addEventListener('change', function () { S.hair = true; afterChange(); });
+  $('hOff').addEventListener('change', function () { S.hair = false; afterChange(); });
+  ['tgB', 'tgL', 'tgR'].forEach(function (id) {
+    $(id).addEventListener('change', function (e) { S.target = e.target.value; placeRing(); });
+  });
+  $('size').addEventListener('change', function (e) { S.size = +e.target.value; refreshLabels(); rebuildPreview(); });
+  $('fps').addEventListener('change', function (e) { S.cs = +e.target.value; refreshLabels(); });
+  $('bgT').addEventListener('change', function () { S.transparent = true; refreshLabels(); paintBg(); });
+  $('bgC').addEventListener('change', function () { S.transparent = false; refreshLabels(); paintBg(); });
+  $('bgc').addEventListener('input', function (e) { S.bg = e.target.value; S.transparent = false; $('bgC').checked = true; refreshLabels(); paintBg(); });
+  $('playBtn').addEventListener('click', function () {
+    S.playing = !S.playing;
+    $('playBtn').textContent = S.playing ? '暫停' : '播放';
+  });
+  $('playBtn').textContent = S.playing ? '暫停' : '播放';
+
+  // move the breathing centre
+  var dragging = false;
+  function setCenter(ev) {
+    var r = frameEl.getBoundingClientRect();
+    var nx = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width));
+    var ny = Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height));
+    if (S.target === 'b') { S.cx = nx; S.cy = ny; }
+    else { var rt = S.roots[S.target === 'l' ? 0 : 1]; rt.x = nx; rt.y = ny; }
+    placeRing();
+    if (!S.playing && pv) draw();
+  }
+  frameEl.addEventListener('pointerdown', function (ev) {
+    dragging = true;
+    try { frameEl.setPointerCapture(ev.pointerId); } catch (e) {}
+    setCenter(ev);
+  });
+  frameEl.addEventListener('pointermove', function (ev) { if (dragging) setCenter(ev); });
+  frameEl.addEventListener('pointerup', function () { dragging = false; });
+  frameEl.addEventListener('pointercancel', function () { dragging = false; });
+
+  /* ---------- loading images ---------- */
+  function loadFile(file) {
+    if (!file || !/^image\//.test(file.type)) { $('status').textContent = '請放入圖片檔（PNG、JPG、WebP 或 GIF）。'; return; }
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function () {
+      S.src = img;
+      S.sw = img.naturalWidth || 512; S.sh = img.naturalHeight || 512;
+      S.hasAlpha = detectAlpha();
+      S.transparent = S.hasAlpha;
+      $('bgT').checked = S.hasAlpha; $('bgC').checked = !S.hasAlpha;
+      S.cx = 0.5; S.cy = 0.58;
+      S.roots[0].x = 0.3; S.roots[0].y = 0.3; S.roots[1].x = 0.7; S.roots[1].y = 0.3;
+      $('sampleTag').hidden = true;
+      $('status').textContent = '';
+      $('result').hidden = true;
+      refreshLabels();
+      rebuildPreview();
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = function () { $('status').textContent = '這個檔案無法開啟，換一張圖試試。'; URL.revokeObjectURL(url); };
+    img.src = url;
+  }
+  $('pickBtn').addEventListener('click', function () { $('file').click(); });
+  $('file').addEventListener('change', function (e) { loadFile(e.target.files[0]); e.target.value = ''; });
+  ['dragenter', 'dragover'].forEach(function (n) {
+    stageEl.addEventListener(n, function (e) { e.preventDefault(); stageEl.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach(function (n) {
+    stageEl.addEventListener(n, function (e) { e.preventDefault(); stageEl.classList.remove('over'); });
+  });
+  stageEl.addEventListener('drop', function (e) { loadFile(e.dataTransfer && e.dataTransfer.files[0]); });
+  document.addEventListener('paste', function (e) {
+    var items = (e.clipboardData && e.clipboardData.items) || [];
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].kind === 'file' && /^image\//.test(items[i].type)) { loadFile(items[i].getAsFile()); break; }
+    }
+  });
+
+  /* ---------- GIF encoder (palette, LZW, container) ---------- */
+  function makePalette(frames, maxColors) {
+    var hist = new Uint32Array(262144), i, k;
+    frames.forEach(function (d) {
+      for (i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 128) continue;
+        hist[((d[i] >> 2) << 12) | ((d[i + 1] >> 2) << 6) | (d[i + 2] >> 2)]++;
+      }
+    });
+    var items = [];
+    for (k = 0; k < 262144; k++) if (hist[k]) items.push({ r: k >> 12, g: (k >> 6) & 63, b: k & 63, n: hist[k] });
+    if (!items.length) return [[0, 0, 0]];
+    function mk(its) {
+      var r0 = 63, r1 = 0, g0 = 63, g1 = 0, b0 = 63, b1 = 0, n = 0;
+      for (var j = 0; j < its.length; j++) {
+        var it = its[j];
+        if (it.r < r0) r0 = it.r; if (it.r > r1) r1 = it.r;
+        if (it.g < g0) g0 = it.g; if (it.g > g1) g1 = it.g;
+        if (it.b < b0) b0 = it.b; if (it.b > b1) b1 = it.b;
+        n += it.n;
+      }
+      var rr = r1 - r0, gg = g1 - g0, bb = b1 - b0;
+      return { its: its, n: n, rng: Math.max(rr, gg, bb), ch: (rr >= gg && rr >= bb) ? 'r' : (gg >= bb ? 'g' : 'b') };
+    }
+    var boxes = [mk(items)];
+    while (boxes.length < maxColors) {
+      var bi = -1, bs = 0;
+      for (i = 0; i < boxes.length; i++) {
+        var b = boxes[i];
+        if (b.its.length < 2) continue;
+        var sc = b.rng * Math.sqrt(b.n);
+        if (sc > bs) { bs = sc; bi = i; }
+      }
+      if (bi < 0) break;
+      var bx = boxes[bi], ch = bx.ch;
+      bx.its.sort(function (p, q) { return p[ch] - q[ch]; });
+      var half = bx.n / 2, acc = 0, cut = 1;
+      for (i = 0; i < bx.its.length; i++) { acc += bx.its[i].n; if (acc >= half) { cut = i + 1; break; } }
+      cut = Math.min(Math.max(cut, 1), bx.its.length - 1);
+      boxes.splice(bi, 1, mk(bx.its.slice(0, cut)), mk(bx.its.slice(cut)));
+    }
+    return boxes.map(function (b) {
+      var r = 0, g = 0, bl = 0, n = 0;
+      for (var j = 0; j < b.its.length; j++) {
+        var it = b.its[j]; r += (it.r * 4 + 2) * it.n; g += (it.g * 4 + 2) * it.n; bl += (it.b * 4 + 2) * it.n; n += it.n;
+      }
+      return [Math.min(255, Math.round(r / n)), Math.min(255, Math.round(g / n)), Math.min(255, Math.round(bl / n))];
+    });
+  }
+
+  var LZ_TBL = new Int32Array(1 << 20), LZ_STAMP = new Int32Array(1 << 20), LZ_GEN = 0;
+  function lzw(idx) {
+    var MIN = 8, CLEAR = 256, EOI = 257;
+    var out = [], cur = 0, bits = 0, codeSize = MIN + 1, maxCode = (1 << codeSize) - 1, next = EOI + 1, clearFlag = false;
+    function emit(code) {
+      cur |= code << bits; bits += codeSize;
+      while (bits >= 8) { out.push(cur & 255); cur >>>= 8; bits -= 8; }
+      if (next > maxCode || clearFlag) {
+        if (clearFlag) { codeSize = MIN + 1; maxCode = (1 << codeSize) - 1; clearFlag = false; }
+        else { codeSize++; maxCode = codeSize === 12 ? 4096 : (1 << codeSize) - 1; }
+      }
+    }
+    LZ_GEN++;
+    emit(CLEAR);
+    var prefix = idx[0];
+    for (var i = 1; i < idx.length; i++) {
+      var c = idx[i], key = (prefix << 8) | c;
+      if (LZ_STAMP[key] === LZ_GEN) { prefix = LZ_TBL[key]; continue; }
+      emit(prefix);
+      if (next < 4096) { LZ_TBL[key] = next++; LZ_STAMP[key] = LZ_GEN; }
+      else { LZ_GEN++; next = EOI + 1; clearFlag = true; emit(CLEAR); }
+      prefix = c;
+    }
+    emit(prefix);
+    emit(EOI);
+    if (bits > 0) out.push(cur & 255);
+    return out;
+  }
+
+  function GifWriter(w, h, palette, tIdx) {
+    this.w = w; this.h = h; this.tIdx = tIdx; this.parts = [];
+    var head = [0x47, 0x49, 0x46, 0x38, 0x39, 0x61, w & 255, w >> 8, h & 255, h >> 8, 0xF7, 0, 0];
+    var pal = new Uint8Array(768);
+    for (var i = 0; i < palette.length && i < 256; i++) { pal[i * 3] = palette[i][0]; pal[i * 3 + 1] = palette[i][1]; pal[i * 3 + 2] = palette[i][2]; }
+    var app = [0x21, 0xFF, 0x0B];
+    'NETSCAPE2.0'.split('').forEach(function (ch) { app.push(ch.charCodeAt(0)); });
+    app.push(0x03, 0x01, 0x00, 0x00, 0x00);
+    this.parts.push(new Uint8Array(head), pal, new Uint8Array(app));
+  }
+  GifWriter.prototype.frame = function (idx, cs) {
+    var t = this.tIdx >= 0, w = this.w, h = this.h;
+    var gce = [0x21, 0xF9, 0x04, ((t ? 2 : 1) << 2) | (t ? 1 : 0), cs & 255, cs >> 8, t ? this.tIdx : 0, 0x00];
+    var desc = [0x2C, 0, 0, 0, 0, w & 255, w >> 8, h & 255, h >> 8, 0x00, 8];
+    var data = lzw(idx), blocks = [];
+    for (var p = 0; p < data.length; p += 255) {
+      var n = Math.min(255, data.length - p);
+      blocks.push(n);
+      for (var j = 0; j < n; j++) blocks.push(data[p + j]);
+    }
+    blocks.push(0);
+    this.parts.push(new Uint8Array(gce), new Uint8Array(desc), new Uint8Array(blocks));
+  };
+  GifWriter.prototype.finish = function () {
+    this.parts.push(new Uint8Array([0x3B]));
+    return new Blob(this.parts, { type: 'image/gif' });
+  };
+
+  /* ---------- export ---------- */
+  var tNext = function () { return new Promise(function (r) { setTimeout(r, 0); }); };
+  var lastBlob = null, lastUrl = null;
+
+  async function makeGif() {
+    if (S.busy || !S.src) return;
+    S.busy = true;
+    $('gen').disabled = true;
+    $('prog').hidden = false; $('progFill').style.width = '0%';
+    $('status').textContent = '準備中…';
+    await tNext();
+    try {
+      var cs = S.cs, N = frameCount();
+      var ex = prepare(S.size);
+      var out = new ImageData(ex.w, ex.h), mid = new ImageData(ex.w, ex.h);
+      var transparent = S.transparent && S.hasAlpha;
+      var bg = hexToRgb(S.bg), P = params();
+      var render = function (f, ph) {
+        renderFrame(ex.data.data, mid.data, out.data, ex.w, ex.h, f, ph);
+        if (!transparent) flatten(out.data, bg);
+        return out.data;
+      };
+      var samples = [[0, 0.1], [1, 0.4], [0.5, 0.7]].map(function (a) { return new Uint8ClampedArray(render(a[0], a[1])); });
+      var pal = makePalette(samples, transparent ? 255 : 256);
+      var tIdx = transparent ? 255 : -1;
+      var lut = new Int16Array(262144).fill(-1);
+      var n = ex.w * ex.h, idx = new Uint8Array(n);
+      var gif = new GifWriter(ex.w, ex.h, pal, tIdx);
+      for (var fi = 0; fi < N; fi++) {
+        var d = render(breath(fi / N), fi / N);
+        for (var p = 0, i = 0; p < n; p++, i += 4) {
+          if (transparent && d[i + 3] < 128) { idx[p] = tIdx; continue; }
+          var key = ((d[i] >> 2) << 12) | ((d[i + 1] >> 2) << 6) | (d[i + 2] >> 2);
+          var v = lut[key];
+          if (v < 0) {
+            var kr = (key >> 12) * 4 + 2, kg = ((key >> 6) & 63) * 4 + 2, kb = (key & 63) * 4 + 2, best = 1e9;
+            v = 0;
+            for (var q = 0; q < pal.length; q++) {
+              var dr = pal[q][0] - kr, dg = pal[q][1] - kg, db = pal[q][2] - kb;
+              var dd = dr * dr * 3 + dg * dg * 4 + db * db * 2;
+              if (dd < best) { best = dd; v = q; }
+            }
+            lut[key] = v;
+          }
+          idx[p] = v;
+        }
+        gif.frame(idx, cs);
+        $('progFill').style.width = ((fi + 1) / N * 100).toFixed(0) + '%';
+        $('status').textContent = '編碼中 ' + (fi + 1) + ' / ' + N + ' 幀';
+        await tNext();
+      }
+      var blob = gif.finish();
+      showResult(blob, N, ex.w, ex.h);
+      $('status').textContent = '完成。';
+    } catch (err) {
+      $('status').textContent = '產生失敗：' + (err && err.message ? err.message : '請換一張較小的圖或降低尺寸再試。');
+    }
+    S.busy = false;
+    $('gen').disabled = false;
+    $('prog').hidden = true;
+  }
+  function fmtSize(b) { return b > 1048576 ? (b / 1048576).toFixed(2) + ' MB' : Math.round(b / 1024) + ' KB'; }
+  function showResult(blob, N, w, h) {
+    if (lastUrl) URL.revokeObjectURL(lastUrl);
+    lastBlob = blob; lastUrl = URL.createObjectURL(blob);
+    $('out').src = lastUrl;
+    $('outMeta').textContent = N + ' 幀 · ' + w + '×' + h + ' px · ' + fmtSize(blob.size);
+    $('result').hidden = false;
+    $('saveNote').textContent = '';
+    if (downloads) { $('saveBtn').hidden = false; $('dl').hidden = true; $('saveNote').textContent = ''; }
+    else if (!(window.claude && window.claude.use)) { $('dl').href = lastUrl; $('dl').hidden = false; $('saveBtn').hidden = true; }
+    else { $('saveBtn').hidden = true; $('saveNote').textContent = '在圖片上長按或按右鍵即可另存。'; }
+  }
+  $('gen').addEventListener('click', makeGif);
+
+  var downloads = null;
+  $('saveBtn').addEventListener('click', async function () {
+    if (!downloads || !lastBlob) return;
+    try {
+      await downloads.save({ filename: 'breathing.gif', data: lastBlob });
+      $('saveNote').textContent = '已交給瀏覽器儲存。';
+    } catch (e) {
+      $('saveNote').textContent = (e && e.code === 'declined') ? '已取消。圖片上長按或按右鍵也能另存。' : '無法直接儲存，請在圖片上長按或按右鍵另存。';
+    }
+  });
+  (async function () {
+    try { downloads = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; } catch (e) { downloads = null; }
+    if (downloads && lastBlob) $('saveBtn').hidden = false;
+  })();
+
+  /* ---------- start ---------- */
+  S.src = makeSample();
+  refreshLabels();
+  rebuildPreview();
+  requestAnimationFrame(tick);
+})();
+</script>
+
+</body></html>
