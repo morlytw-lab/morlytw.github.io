@@ -1,0 +1,1149 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>撕紙顯影</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;900&family=Noto+Serif+TC:wght@900&display=swap">
+<style>
+  /* Layout: one wide paper stage under a left-aligned title; controls sit below it like tools on a desk. */
+  :root {
+    --bg: #dde1e7;
+    --surface: #eceef2;
+    --fg: #13171e;
+    --muted: #596273;
+    --line: #c0c7d1;
+    --accent: #2a44e8;
+    --on-accent: #ffffff;
+    --shadow: rgba(12, 16, 28, 0.5);
+    --font-display: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
+    --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151b;
+      --surface: #1b2029;
+      --fg: #e9ecf2;
+      --muted: #929bab;
+      --line: #2c3340;
+      --accent: #8e9bff;
+      --on-accent: #0c1030;
+      --shadow: rgba(0, 0, 0, 0.75);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12151b;
+    --surface: #1b2029;
+    --fg: #e9ecf2;
+    --muted: #929bab;
+    --line: #2c3340;
+    --accent: #8e9bff;
+    --on-accent: #0c1030;
+    --shadow: rgba(0, 0, 0, 0.75);
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.6;
+    padding-block: 28px 40px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 960px; margin-inline: auto; }
+
+  .head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 28px; margin-bottom: 20px; }
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: clamp(2rem, 7vw, 3.2rem);
+    line-height: 1.05;
+    letter-spacing: 0.04em;
+    text-wrap: balance;
+  }
+  .lede { margin: 0; flex: 1 1 260px; min-width: 0; max-width: 34em; color: var(--muted); }
+
+  .stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1000 / 800;
+    background: var(--surface);
+    box-shadow: 0 0 0 1px var(--line), 0 26px 50px -26px var(--shadow);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+
+  .meta-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; margin: 14px 0 0; font-size: 0.875rem; color: var(--muted); }
+  .meta-row p { margin: 0; min-width: 0; }
+  #status { transition: color .2s; }
+  #status.nudge { color: var(--accent); font-weight: 500; }
+  #meta { font-variant-numeric: tabular-nums; }
+
+  .tools { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  .btn {
+    font: 500 0.9rem/1 var(--font-body);
+    color: var(--fg);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 11px 16px;
+    cursor: pointer;
+    transition: border-color .15s, transform .1s;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .sr:focus-visible + .btn { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+  @media (max-width: 560px) { .slots { grid-template-columns: 1fr; } }
+  .slot { position: relative; display: flex; align-items: center; gap: 14px; min-width: 0; padding: 10px; background: var(--surface); border: 1px dashed var(--line); border-radius: 6px; transition: border-color .15s; }
+  .slot.over { border-color: var(--accent); }
+  .slot canvas { flex: none; width: 84px; height: auto; max-height: 120px; border-radius: 3px; background: var(--line); box-shadow: 0 0 0 1px var(--line); }
+  .slot-body { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .slot-body strong { font-weight: 500; }
+  .slot-body span { font-size: 0.8125rem; color: var(--muted); }
+  .slot-body .btn { margin-top: 8px; padding: 9px 14px; }
+  .modebar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; margin-bottom: 14px; }
+  .seg { display: inline-flex; }
+  .seg .btn { border-radius: 0; padding: 10px 20px; }
+  .seg .btn:first-child { border-radius: 6px 0 0 6px; }
+  .seg .btn:last-child { border-radius: 0 6px 6px 0; margin-left: -1px; }
+  .seg .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .opt { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 0.9rem; }
+  .opt input[type="range"] { width: min(200px, 46vw); accent-color: var(--accent); }
+  .opt input:disabled { opacity: 0.4; }
+  .opt select { font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
+  .out { margin-top: 22px; }
+  .out img { display: block; max-width: 100%; height: auto; box-shadow: 0 0 0 1px var(--line), 0 18px 36px -22px var(--shadow); border-radius: 3px; }
+  .out p { margin: 10px 0 0; font-size: 0.875rem; color: var(--muted); }
+  .btn:disabled { opacity: 0.6; cursor: progress; }
+  @media (prefers-reduced-motion: reduce) {
+    .btn, #status { transition: none; }
+  }
+</style>
+
+<main class="wrap">
+  <header class="head">
+    <h1>撕紙顯影</h1>
+    <p class="lede">從紙邊或角落按住，往內拉。撕下的紙會翻起、落下，底下的畫面跟著露出來。</p>
+  </header>
+
+  <div class="slots">
+    <div class="slot" id="slotTop">
+      <canvas id="thumbTop" width="120" height="96" aria-hidden="true"></canvas>
+      <div class="slot-body">
+        <strong>上層圖片</strong>
+        <span>被撕開的那張，也可以直接拖進來</span>
+        <input class="sr" type="file" id="fileTop" accept="image/*">
+        <label class="btn" for="fileTop">選擇圖片</label>
+      </div>
+    </div>
+    <div class="slot" id="slotBot">
+      <canvas id="thumbBot" width="120" height="96" aria-hidden="true"></canvas>
+      <div class="slot-body">
+        <strong>底層圖片</strong>
+        <span>撕開後露出的那張，也可以直接拖進來</span>
+        <input class="sr" type="file" id="fileBot" accept="image/*">
+        <label class="btn" for="fileBot">選擇圖片</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="modebar">
+    <div class="seg" role="group" aria-label="撕法">
+      <button class="btn" id="modeFull" type="button" aria-pressed="true">整片</button>
+      <button class="btn" id="modeStrip" type="button" aria-pressed="false">細條</button>
+    </div>
+    <label class="opt" for="stripW">條寬
+      <input type="range" id="stripW" min="40" max="240" step="10" value="70" disabled>
+    </label>
+    <label class="opt" for="gifQ">GIF 畫質
+      <select id="gifQ">
+        <option value="480">標準</option>
+        <option value="720" selected>高畫質</option>
+      </select>
+    </label>
+  </div>
+
+  <section class="stage" id="stage">
+    <canvas id="cv" role="img" aria-label="一張可以用手撕開的紙，撕開處露出底下的日落風景"></canvas>
+  </section>
+
+  <div class="meta-row">
+    <p id="status" aria-live="polite">從紙邊或角落按住，往內拉。</p>
+    <p id="meta">已撕 0 次 · 露出 0%</p>
+  </div>
+
+  <div class="tools">
+    <button class="btn primary" id="btnAuto" type="button">撕一角</button>
+    <button class="btn" id="btnReset" type="button">重新貼紙</button>
+    <button class="btn" id="btnSound" type="button" aria-pressed="true">音效：開</button>
+    <button class="btn" id="btnGif" type="button">錄製 GIF</button>
+  </div>
+
+  <section class="out" id="gifOut" hidden>
+    <img id="gifImg" alt="撕紙動畫 GIF">
+    <p id="gifNote"></p>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var LW = 1000;
+  var LH = 800;
+  var DPR = window.devicePixelRatio || 1;
+  var Q = DPR > 1 ? 1.5 : 1;
+  var PAPER = '#f3f0e9';
+  var S = 0.9;               // how much the folded flap is foreshortened
+  var EDGE_MARGIN = 150;     // grab zone width in logical px
+  var SANS = '"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
+  var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var stage = document.getElementById('stage');
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+  var statusEl = document.getElementById('status');
+  var metaEl = document.getElementById('meta');
+
+  var underC, underX, pulpC, pulpX, inkC, inkX, pulpT, pulpTX, inkT, inkTX;
+  var flapB, flapBX, flapT, flapTX, snapC, snapX;
+
+  var topImg = null, botImg = null;
+  var tear = null, fall = null, busy = false, recording = false, stripMode = false, stripW = 70;
+  var tears = 0, hintOn = true, activePointer = null, autoIdx = 0;
+  var grainPattern = null;
+
+  /* ---------- canvases ---------- */
+  function mk() {
+    var c = document.createElement('canvas');
+    c.width = Math.round(LW * Q);
+    c.height = Math.round(LH * Q);
+    var x = c.getContext('2d');
+    x.setTransform(Q, 0, 0, Q, 0, 0);
+    return [c, x];
+  }
+  function allocate() {
+    cv.width = Math.round(LW * Q);
+    cv.height = Math.round(LH * Q);
+    stage.style.aspectRatio = LW + ' / ' + LH;
+    var a;
+    a = mk(); underC = a[0]; underX = a[1];
+    a = mk(); pulpC = a[0]; pulpX = a[1];
+    a = mk(); inkC = a[0]; inkX = a[1];
+    a = mk(); pulpT = a[0]; pulpTX = a[1];
+    a = mk(); inkT = a[0]; inkTX = a[1];
+    a = mk(); flapB = a[0]; flapBX = a[1];
+    a = mk(); flapT = a[0]; flapTX = a[1];
+    a = mk(); snapC = a[0]; snapX = a[1];
+  }
+
+  /* ---------- noise ---------- */
+  function hash(i, s) { var x = Math.sin(i * 127.1 + s * 311.7) * 43758.5453; return x - Math.floor(x); }
+  function vn(v, p, s) {
+    var f = v / p, i = Math.floor(f), t = f - i, k = t * t * (3 - 2 * t);
+    return (hash(i, s) * (1 - k) + hash(i + 1, s) * k) * 2 - 1;
+  }
+  function makeGrain() {
+    var t = document.createElement('canvas'); t.width = 96; t.height = 96;
+    var x = t.getContext('2d'), im = x.createImageData(96, 96), d = im.data;
+    for (var i = 0; i < d.length; i += 4) {
+      var v = Math.random() < 0.5 ? 0 : 255;
+      d[i] = v; d[i + 1] = v; d[i + 2] = v; d[i + 3] = Math.random() * 15;
+    }
+    x.putImageData(im, 0, 0);
+    grainPattern = ctx.createPattern(t, 'repeat');
+  }
+  function grain(x) {
+    if (!grainPattern) return;
+    x.save();
+    x.globalCompositeOperation = 'source-atop';
+    x.fillStyle = grainPattern;
+    x.fillRect(0, 0, LW, LH);
+    x.restore();
+  }
+
+  /* ---------- default artwork ---------- */
+  function drawTopDefault(x) {
+    var W = LW, H = LH;
+    var g = x.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, '#2f4bf0'); g.addColorStop(1, '#1a2cb4');
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+
+    x.fillStyle = 'rgba(255,255,255,0.13)';
+    for (var gy = 14; gy < H; gy += 28) {
+      for (var gx = 14; gx < W; gx += 28) {
+        var t = Math.max(0, 1 - Math.hypot(gx - W * 0.08, gy - H * 0.95) / (W * 0.9));
+        var r = t * 11;
+        if (r > 0.8) { x.beginPath(); x.arc(gx, gy, r, 0, 6.2832); x.fill(); }
+      }
+    }
+    x.fillStyle = '#ffcf3d';
+    x.beginPath(); x.arc(W * 0.70, H * 0.36, H * 0.27, 0, 6.2832); x.fill();
+    x.strokeStyle = '#f5f1e8'; x.lineWidth = 3;
+    x.beginPath(); x.arc(W * 0.70, H * 0.36, H * 0.34, 0, 6.2832); x.stroke();
+
+    x.fillStyle = '#f5f1e8';
+    x.textBaseline = 'alphabetic';
+    x.font = '900 ' + Math.round(H * 0.42) + 'px ' + SANS;
+    x.fillText('撕開', W * 0.06, H * 0.80);
+
+    x.font = '500 22px ' + SANS;
+    try { x.letterSpacing = '4px'; } catch (e) {}
+    x.fillText('PULL INWARD FROM ANY EDGE', W * 0.06, H * 0.10);
+    try { x.letterSpacing = '0px'; } catch (e) {}
+    x.fillRect(W * 0.06, H * 0.865, W * 0.88, 3);
+    x.font = '500 26px ' + SANS;
+    x.fillText('從紙邊往內拉，底下的畫面就會露出來', W * 0.06, H * 0.94);
+  }
+
+  function drawBottomDefault(x) {
+    var W = LW, H = LH, hz = H * 0.64;
+    var sky = x.createLinearGradient(0, 0, 0, hz);
+    sky.addColorStop(0, '#1b1346'); sky.addColorStop(0.45, '#6b2a7e');
+    sky.addColorStop(0.78, '#f0645f'); sky.addColorStop(1, '#ffc470');
+    x.fillStyle = sky; x.fillRect(0, 0, W, hz + 12);
+
+    var s = 7;
+    function rnd() { s = (s * 16807) % 2147483647; return s / 2147483647; }
+    x.fillStyle = 'rgba(255,255,255,0.8)';
+    for (var i = 0; i < 70; i++) {
+      x.beginPath(); x.arc(rnd() * W, rnd() * hz * 0.5, rnd() * 1.4 + 0.3, 0, 6.2832); x.fill();
+    }
+    var sx = W * 0.36, sy = hz - H * 0.10;
+    var rg = x.createRadialGradient(sx, sy, 10, sx, sy, H * 0.45);
+    rg.addColorStop(0, 'rgba(255,244,207,1)'); rg.addColorStop(0.25, 'rgba(255,196,112,0.55)'); rg.addColorStop(1, 'rgba(255,120,90,0)');
+    x.fillStyle = rg; x.fillRect(0, 0, W, hz + 12);
+    x.fillStyle = '#fff3c9';
+    x.beginPath(); x.arc(sx, sy, H * 0.11, 0, 6.2832); x.fill();
+
+    function ridge(base, amp, seed, color) {
+      x.fillStyle = color; x.beginPath(); x.moveTo(0, hz + 10);
+      for (var px = 0; px <= W; px += 6) {
+        var y = base - amp * (0.5 * Math.abs(vn(px, 180, seed)) + 0.35 * Math.abs(vn(px, 70, seed + 3)) + 0.15 * Math.abs(vn(px, 25, seed + 7)));
+        x.lineTo(px, y);
+      }
+      x.lineTo(W, hz + 10); x.closePath(); x.fill();
+    }
+    ridge(hz + 6, H * 0.13, 3, '#59276f');
+    ridge(hz + 10, H * 0.10, 11, '#3a1c57');
+    ridge(hz + 12, H * 0.06, 23, '#1f1138');
+
+    var wg = x.createLinearGradient(0, hz + 8, 0, H);
+    wg.addColorStop(0, '#3a1c57'); wg.addColorStop(1, '#120a26');
+    x.fillStyle = wg; x.fillRect(0, hz + 8, W, H - hz - 8);
+    for (var j = 0; j < 22; j++) {
+      var yy = hz + 16 + j * (H - hz - 20) / 22;
+      var ww = (8 + j * 7) * (0.6 + 0.4 * Math.sin(j * 1.7));
+      x.fillStyle = 'rgba(255,214,150,' + Math.max(0.08, 0.55 - j * 0.025) + ')';
+      x.fillRect(sx - ww / 2, yy, ww, 3);
+    }
+  }
+
+  function drawCover(x, img) {
+    var sc = Math.max(LW / img.naturalWidth, LH / img.naturalHeight);
+    var dw = img.naturalWidth * sc, dh = img.naturalHeight * sc;
+    x.drawImage(img, (LW - dw) / 2, (LH - dh) / 2, dw, dh);
+  }
+
+  function buildUnder() {
+    underX.clearRect(0, 0, LW, LH);
+    if (botImg) drawCover(underX, botImg); else drawBottomDefault(underX);
+    updateThumbs();
+  }
+  function buildPaper() {
+    pulpX.clearRect(0, 0, LW, LH);
+    pulpX.fillStyle = PAPER; pulpX.fillRect(0, 0, LW, LH);
+    grain(pulpX);
+    inkX.clearRect(0, 0, LW, LH);
+    if (topImg) drawCover(inkX, topImg); else drawTopDefault(inkX);
+    grain(inkX);
+    updateThumbs();
+  }
+
+  /* ---------- geometry ---------- */
+  function norm(v) { var l = Math.hypot(v.x, v.y) || 1; return { x: v.x / l, y: v.y / l }; }
+
+  function makeEdges(d, seed, half) {
+    function ink(v) {
+      return d + 18 * vn(v, 260, seed) + 7 * vn(v, 55, seed + 1) + 2.6 * vn(v, 12, seed + 2) + 1 * vn(v, 4, seed + 3);
+    }
+    function pulp(v) {
+      var off = Math.max(2.5, 7 + 4 * vn(v, 30, seed + 4) + 1.5 * vn(v, 6, seed + 5));
+      return ink(v) - off + 1.2 * vn(v, 9, seed + 6);
+    }
+    var out = { ink: ink, pulp: pulp, sides: null };
+    if (half) {
+      var off = function (u) { return Math.max(2.5, 6 + 3 * vn(u, 24, seed + 8) + 1.2 * vn(u, 6, seed + 9)); };
+      var lo = function (u) { return -half + 8 * vn(u, 140, seed + 10) + 3 * vn(u, 30, seed + 11) + 1.2 * vn(u, 7, seed + 12); };
+      var hi = function (u) { return half + 8 * vn(u, 140, seed + 13) + 3 * vn(u, 30, seed + 14) + 1.2 * vn(u, 7, seed + 15); };
+      out.sides = {
+        ink: { half: half, lo: lo, hi: hi },
+        pulp: {
+          half: half,
+          lo: function (u) { return lo(u) + off(u); },
+          hi: function (u) { return hi(u) - off(u); }
+        }
+      };
+    }
+    return out;
+  }
+
+  function polyPath(x, g, w, edge, sd) {
+    var R = Math.hypot(LW, LH) + 80, tx = -w.y, ty = w.x;
+    function P(u, v) { return [g.x + w.x * u + tx * v, g.y + w.y * u + ty * v]; }
+    var p, v, u;
+    x.beginPath();
+    if (sd) {
+      var uLo = edge(-sd.half), uHi = edge(sd.half);
+      p = P(-60, sd.lo(-60)); x.moveTo(p[0], p[1]);
+      for (u = -60; u <= uLo; u += 3) { p = P(u, sd.lo(u)); x.lineTo(p[0], p[1]); }
+      for (v = sd.lo(uLo); v <= sd.hi(uHi); v += 3) { p = P(edge(v), v); x.lineTo(p[0], p[1]); }
+      for (u = uHi; u >= -60; u -= 3) { p = P(u, sd.hi(u)); x.lineTo(p[0], p[1]); }
+      x.closePath();
+      return;
+    }
+    p = P(-R, -R); x.moveTo(p[0], p[1]);
+    p = P(-R, R); x.lineTo(p[0], p[1]);
+    for (v = R; v >= -R; v -= 3) { p = P(edge(v), v); x.lineTo(p[0], p[1]); }
+    x.closePath();
+  }
+  function cut(x, g, w, edge, sd) {
+    x.save();
+    x.globalCompositeOperation = 'destination-out';
+    polyPath(x, g, w, edge, sd);
+    x.fill();
+    x.restore();
+  }
+  function applyFlapMatrix(x, g, w, d) {
+    x.translate(g.x, g.y);
+    x.transform(w.x, w.y, -w.y, w.x, 0, 0);
+    x.translate((1 + S) * d, 0);
+    x.scale(-S, 1);
+    x.transform(w.x, -w.y, w.y, w.x, 0, 0);
+    x.translate(-g.x, -g.y);
+  }
+
+  /* ---------- flap ---------- */
+  function prepFlapBase() {
+    flapBX.clearRect(0, 0, LW, LH);
+    flapBX.globalCompositeOperation = 'source-over';
+    flapBX.fillStyle = PAPER; flapBX.fillRect(0, 0, LW, LH);
+    flapBX.globalCompositeOperation = 'destination-in';
+    flapBX.drawImage(pulpC, 0, 0, LW, LH);
+    flapBX.globalCompositeOperation = 'source-atop';
+    flapBX.globalAlpha = 0.14;
+    flapBX.drawImage(inkC, 0, 0, LW, LH);
+    flapBX.globalAlpha = 1;
+    flapBX.globalCompositeOperation = 'source-over';
+    grain(flapBX);
+  }
+  function buildFlapTmp(t) {
+    var g = t.g, w = t.w, d = t.d;
+    flapTX.clearRect(0, 0, LW, LH);
+    flapTX.save();
+    polyPath(flapTX, g, w, t.edges.pulp, t.edges.sides && t.edges.sides.pulp);
+    flapTX.clip();
+    flapTX.drawImage(flapB, 0, 0, LW, LH);
+    flapTX.restore();
+    flapTX.save();
+    flapTX.globalCompositeOperation = 'source-atop';
+    var a = { x: g.x + w.x * d, y: g.y + w.y * d };
+    var b = { x: g.x + w.x * (d - 110), y: g.y + w.y * (d - 110) };
+    var gr = flapTX.createLinearGradient(a.x, a.y, b.x, b.y);
+    gr.addColorStop(0, 'rgba(20,20,40,0.30)');
+    gr.addColorStop(0.18, 'rgba(20,20,40,0.10)');
+    gr.addColorStop(0.42, 'rgba(255,255,255,0.28)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    flapTX.fillStyle = gr;
+    flapTX.fillRect(0, 0, LW, LH);
+    flapTX.restore();
+  }
+
+  /* ---------- render ---------- */
+  function render(now) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.setTransform(Q, 0, 0, Q, 0, 0);
+    ctx.drawImage(underC, 0, 0, LW, LH);
+
+    var pulpSrc = pulpC, inkSrc = inkC;
+    var active = tear && tear.started && tear.d > 1;
+    if (active) {
+      pulpTX.clearRect(0, 0, LW, LH); pulpTX.drawImage(pulpC, 0, 0, LW, LH);
+      cut(pulpTX, tear.g, tear.w, tear.edges.pulp, tear.edges.sides && tear.edges.sides.pulp);
+      inkTX.clearRect(0, 0, LW, LH); inkTX.drawImage(inkC, 0, 0, LW, LH);
+      cut(inkTX, tear.g, tear.w, tear.edges.ink, tear.edges.sides && tear.edges.sides.ink);
+      pulpSrc = pulpT; inkSrc = inkT;
+    }
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 14 * Q; ctx.shadowOffsetX = 2 * Q; ctx.shadowOffsetY = 3 * Q;
+    ctx.drawImage(pulpSrc, 0, 0, LW, LH);
+    ctx.restore();
+    ctx.drawImage(inkSrc, 0, 0, LW, LH);
+
+    if (active) {
+      buildFlapTmp(tear);
+      ctx.save();
+      applyFlapMatrix(ctx, tear.g, tear.w, tear.d);
+      ctx.shadowColor = 'rgba(0,0,0,0.38)';
+      ctx.shadowBlur = 18 * Q; ctx.shadowOffsetY = 8 * Q;
+      ctx.drawImage(flapT, 0, 0, LW, LH);
+      ctx.restore();
+      tear.speed *= 0.92;
+      updateSound();
+    }
+    if (fall) drawFall(now);
+    if (hintOn && !tear && tears === 0 && !stripMode) drawHint(now);
+  }
+
+  function drawFall(now) {
+    var k = Math.min(1, (now - fall.t0) / fall.dur);
+    if (k >= 1) { fall = null; return; }
+    var e = k * k;
+    ctx.save();
+    ctx.globalAlpha = 1 - Math.pow(k, 2.2);
+    ctx.translate(0, fall.drop * e);
+    ctx.translate(fall.px, fall.py); ctx.rotate(fall.rot * k); ctx.translate(-fall.px, -fall.py);
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 18 * Q; ctx.shadowOffsetY = (8 + 20 * e) * Q;
+    ctx.drawImage(snapC, 0, 0, LW, LH);
+    ctx.restore();
+  }
+
+  function drawHint(now) {
+    var L = 34 + (reduced ? 0 : 6 * Math.sin(now / 380));
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(LW - L, 0); ctx.lineTo(LW, 0); ctx.lineTo(LW, L); ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(underC, 0, 0, LW, LH);
+    ctx.restore();
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 8 * Q; ctx.shadowOffsetX = -2 * Q; ctx.shadowOffsetY = 3 * Q;
+    ctx.beginPath(); ctx.moveTo(LW - L, 0); ctx.lineTo(LW, L); ctx.lineTo(LW - L, L); ctx.closePath();
+    var gr = ctx.createLinearGradient(LW - L, 0, LW - L * 0.4, L * 0.7);
+    gr.addColorStop(0, '#cfcabd'); gr.addColorStop(1, '#faf8f3');
+    ctx.fillStyle = gr; ctx.fill();
+    ctx.restore();
+  }
+
+  var raf = 0;
+  function needsLoop() { return !!(tear || fall || (hintOn && !reduced && tears === 0 && !stripMode)); }
+  function frame(now) {
+    raf = 0;
+    render(now);
+    if (needsLoop()) raf = requestAnimationFrame(frame);
+  }
+  function requestRender() { if (!raf) raf = requestAnimationFrame(frame); }
+
+  /* ---------- sound ---------- */
+  var actx = null, noiseBuf = null, noiseSrc = null, gainN = null, bpN = null, soundOn = true;
+  function ensureAudio() {
+    if (!soundOn) return false;
+    try {
+      if (!actx) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return false;
+        actx = new AC();
+        var len = actx.sampleRate * 2;
+        noiseBuf = actx.createBuffer(1, len, actx.sampleRate);
+        var dat = noiseBuf.getChannelData(0);
+        for (var i = 0; i < len; i++) dat[i] = Math.random() * 2 - 1;
+      }
+      if (actx.state === 'suspended') actx.resume();
+      return true;
+    } catch (e) { return false; }
+  }
+  function startSound() {
+    if (!ensureAudio()) return;
+    try {
+      noiseSrc = actx.createBufferSource();
+      noiseSrc.buffer = noiseBuf; noiseSrc.loop = true;
+      bpN = actx.createBiquadFilter(); bpN.type = 'bandpass'; bpN.frequency.value = 2600; bpN.Q.value = 0.6;
+      var hp = actx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 700;
+      gainN = actx.createGain(); gainN.gain.value = 0;
+      noiseSrc.connect(bpN); bpN.connect(hp); hp.connect(gainN); gainN.connect(actx.destination);
+      noiseSrc.start();
+    } catch (e) { gainN = null; }
+  }
+  function updateSound() {
+    if (!gainN || !tear) return;
+    var now = actx.currentTime;
+    gainN.gain.setTargetAtTime(Math.min(0.35, tear.speed * 0.00045), now, 0.04);
+    bpN.frequency.setTargetAtTime(1800 + Math.min(3000, tear.speed * 2.2), now, 0.05);
+  }
+  function stopSound() {
+    if (!gainN) return;
+    try { gainN.gain.setTargetAtTime(0, actx.currentTime, 0.05); } catch (e) {}
+    var s = noiseSrc;
+    setTimeout(function () { try { s.stop(); } catch (e) {} }, 300);
+    gainN = null; noiseSrc = null;
+  }
+
+  /* ---------- tearing ---------- */
+  function toLogical(e) {
+    var r = cv.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * LW / r.width, y: (e.clientY - r.top) * LH / r.height };
+  }
+  function grabPoint(p) {
+    var dl = p.x, dr = LW - p.x, dt = p.y, db = LH - p.y;
+    var mx = Math.min(dl, dr), my = Math.min(dt, db);
+    if (Math.min(mx, my) > EDGE_MARGIN) return null;
+    var cm = EDGE_MARGIN * 0.75;
+    if (mx <= cm && my <= cm) return { x: dl < dr ? 0 : LW, y: dt < db ? 0 : LH };
+    if (mx <= my) return { x: dl < dr ? 0 : LW, y: p.y };
+    return { x: p.x, y: dt < db ? 0 : LH };
+  }
+  function grabStrip(p) {
+    var dl = p.x, dr = LW - p.x, dt = p.y, db = LH - p.y;
+    var mx = Math.min(dl, dr), my = Math.min(dt, db);
+    if (Math.min(mx, my) > EDGE_MARGIN) return null;
+    if (mx <= my) {
+      var left = dl < dr;
+      return { g: { x: left ? 0 : LW, y: p.y }, axis: { x: left ? 1 : -1, y: 0 } };
+    }
+    var top = dt < db;
+    return { g: { x: p.x, y: top ? 0 : LH }, axis: { x: 0, y: top ? 1 : -1 } };
+  }
+  function beginTear(p0, g, axis) {
+    var inward = axis || norm({ x: LW / 2 - g.x, y: LH / 2 - g.y });
+    var half = axis ? stripW / 2 : 0;
+    tear = {
+      g: g, p0: p0, started: false, w: inward, inward: inward, d: 0, half: half,
+      seed: Math.random() * 1000, edges: makeEdges(0, 1, half), lastQ: p0, lastT: performance.now(), speed: 0
+    };
+    prepFlapBase();
+  }
+  function moveTear(q, now) {
+    if (!tear) return;
+    var g = tear.g;
+    if (!tear.started) {
+      if (Math.hypot(q.x - tear.p0.x, q.y - tear.p0.y) < 8) return;
+      tear.started = true;
+      hintOn = false;
+      statusEl.textContent = '放開手，撕下的紙會落下。';
+      startSound();
+    }
+    var dx = q.x - g.x, dy = q.y - g.y, len = Math.hypot(dx, dy);
+    var raw = len > 1 ? { x: dx / len, y: dy / len } : tear.w;
+    var t = norm({ x: raw.x * 0.6 + tear.inward.x * 0.4, y: raw.y * 0.6 + tear.inward.y * 0.4 });
+    tear.w = norm({ x: tear.w.x * 0.7 + t.x * 0.3, y: tear.w.y * 0.7 + t.y * 0.3 });
+    if (tear.half) tear.w = tear.inward;
+    var w = tear.w;
+    var dist = dx * w.x + dy * w.y;
+    var dmax = 0, cs = [[0, 0], [LW, 0], [0, LH], [LW, LH]];
+    for (var i = 0; i < 4; i++) dmax = Math.max(dmax, (cs[i][0] - g.x) * w.x + (cs[i][1] - g.y) * w.y);
+    tear.d = Math.max(0, Math.min(dist / (1 + S), dmax + 40));
+    tear.edges = makeEdges(tear.d, tear.seed, tear.half);
+    var dt = Math.max(1, now - tear.lastT);
+    var sp = Math.hypot(q.x - tear.lastQ.x, q.y - tear.lastQ.y) / dt * 1000;
+    tear.speed = tear.speed * 0.7 + sp * 0.3;
+    tear.lastQ = q; tear.lastT = now;
+    requestRender();
+  }
+  function endTear() {
+    var t = tear;
+    tear = null;
+    stopSound();
+    if (!t || !t.started || t.d < 4) { requestRender(); return; }
+    buildFlapTmp(t);
+    snapX.clearRect(0, 0, LW, LH);
+    snapX.save();
+    applyFlapMatrix(snapX, t.g, t.w, t.d);
+    snapX.drawImage(flapT, 0, 0, LW, LH);
+    snapX.restore();
+    cut(pulpX, t.g, t.w, t.edges.pulp, t.edges.sides && t.edges.sides.pulp);
+    cut(inkX, t.g, t.w, t.edges.ink, t.edges.sides && t.edges.sides.ink);
+    tears++;
+    var k = (1 + S) * t.d * 0.6;
+    fall = {
+      t0: performance.now(), dur: reduced ? 220 : 900,
+      drop: reduced ? 0 : 360, rot: reduced ? 0 : (t.w.x >= 0 ? -0.5 : 0.5),
+      px: t.g.x + t.w.x * k, py: t.g.y + t.w.y * k
+    };
+    updateMeta();
+    statusEl.textContent = '再撕一次，或換上你自己的圖片。';
+    requestRender();
+  }
+
+  function autoTear() {
+    if (busy || tear) return;
+    busy = true;
+    var corners = [{ x: LW, y: 0 }, { x: 0, y: LH }, { x: LW, y: LH }, { x: 0, y: 0 }];
+    var g = corners[autoIdx++ % 4];
+    var inward = norm({ x: LW / 2 - g.x, y: LH / 2 - g.y });
+    var sw = (Math.random() - 0.5) * 0.5;
+    var dir = norm({ x: inward.x - inward.y * sw, y: inward.y + inward.x * sw });
+    var reach = 300 + Math.random() * 280, axis = null;
+    if (stripMode) {
+      var left = autoIdx % 2 === 0;
+      g = { x: left ? 0 : LW, y: LH * (0.2 + 0.6 * Math.random()) };
+      axis = { x: left ? 1 : -1, y: 0 };
+      inward = axis; dir = axis; reach = LW * (0.35 + 0.5 * Math.random());
+    }
+    var p0 = { x: g.x + inward.x * 30, y: g.y + inward.y * 30 };
+    beginTear(p0, g, axis);
+    var t0 = performance.now(), dur = 900;
+    (function step(now) {
+      var k = Math.min(1, (now - t0) / dur);
+      var e = 1 - Math.pow(1 - k, 3);
+      var q = { x: p0.x + dir.x * reach * e, y: p0.y + dir.y * reach * e };
+      moveTear(q, now);
+      if (k >= 1) { endTear(); busy = false; }
+      else requestAnimationFrame(step);
+    })(t0 + 16);
+  }
+
+  /* ---------- meta ---------- */
+  var covC = document.createElement('canvas');
+  function coverage() {
+    var h = Math.max(8, Math.round(64 * LH / LW));
+    covC.width = 64; covC.height = h;
+    var cx = covC.getContext('2d', { willReadFrequently: true });
+    cx.drawImage(pulpC, 0, 0, 64, h);
+    var d = cx.getImageData(0, 0, 64, h).data, n = 0;
+    for (var i = 3; i < d.length; i += 4) if (d[i] < 128) n++;
+    return Math.round(n / (64 * h) * 100);
+  }
+  function updateMeta() { metaEl.textContent = '已撕 ' + tears + ' 次 · 露出 ' + coverage() + '%'; }
+  var nudgeTimer = 0;
+  function nudge() {
+    statusEl.textContent = stripMode ? '請從紙的邊緣開始按住，往內橫拉。' : '請從紙邊或角落開始按住。';
+    statusEl.classList.add('nudge');
+    clearTimeout(nudgeTimer);
+    nudgeTimer = setTimeout(function () { statusEl.classList.remove('nudge'); }, 1000);
+  }
+
+  /* ---------- reset / images ---------- */
+  function resetPaper() {
+    tears = 0; tear = null; fall = null; hintOn = true;
+    stopSound();
+    buildPaper();
+    updateMeta();
+    statusEl.textContent = '從紙邊或角落按住，往內拉。';
+    requestRender();
+  }
+  function setAspect(a) {
+    a = Math.max(0.7, Math.min(1.7, a));
+    LH = Math.round(LW / a);
+    allocate();
+    buildUnder();
+  }
+  function loadFile(file, cb) {
+    if (!file || !/^image\//.test(file.type)) return;
+    var url = URL.createObjectURL(file), img = new Image();
+    img.onload = function () { URL.revokeObjectURL(url); cb(img); };
+    img.onerror = function () {
+      URL.revokeObjectURL(url);
+      statusEl.textContent = '這個檔案無法開啟，請換一張圖片。';
+    };
+    img.src = url;
+  }
+
+  /* ---------- events ---------- */
+  cv.addEventListener('pointerdown', function (e) {
+    if (busy || tear) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    var p = toLogical(e), g = null, axis = null;
+    if (stripMode) { var s = grabStrip(p); if (s) { g = s.g; axis = s.axis; } }
+    else g = grabPoint(p);
+    if (!g) { nudge(); return; }
+    e.preventDefault();
+    try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+    activePointer = e.pointerId;
+    beginTear(p, g, axis);
+    cv.style.cursor = 'grabbing';
+  });
+  cv.addEventListener('pointermove', function (e) {
+    if (tear && e.pointerId === activePointer) moveTear(toLogical(e), performance.now());
+    else if (!tear && !busy && e.pointerType === 'mouse') cv.style.cursor = (stripMode ? grabStrip(toLogical(e)) : grabPoint(toLogical(e))) ? 'grab' : 'default';
+  });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(function (n) {
+    cv.addEventListener(n, function (e) {
+      if (tear && e.pointerId === activePointer) { endTear(); cv.style.cursor = 'grab'; }
+    });
+  });
+
+  document.getElementById('btnAuto').addEventListener('click', function () { ensureAudio(); autoTear(); });
+  document.getElementById('btnReset').addEventListener('click', function () { if (!busy) resetPaper(); });
+  var thumbTop = document.getElementById('thumbTop');
+  var thumbBot = document.getElementById('thumbBot');
+  function drawThumb(t, src) {
+    var w = 120, h = Math.round(120 * LH / LW);
+    t.width = w; t.height = h;
+    t.getContext('2d').drawImage(src, 0, 0, w, h);
+  }
+  function updateThumbs() { drawThumb(thumbTop, inkC); drawThumb(thumbBot, underC); }
+
+  function useTopFile(f) {
+    if (busy || tear) return;
+    if (recording) { statusEl.textContent = '錄製中無法換圖，請先停止錄製。'; return; }
+    loadFile(f, function (img) {
+      topImg = img;
+      setAspect(img.naturalWidth / img.naturalHeight);
+      resetPaper();
+      statusEl.textContent = '已換上層圖片，從邊緣往內拉。';
+    });
+  }
+  function useBotFile(f) {
+    if (busy || tear) return;
+    if (recording) { statusEl.textContent = '錄製中無法換圖，請先停止錄製。'; return; }
+    loadFile(f, function (img) {
+      botImg = img; buildUnder(); requestRender();
+      statusEl.textContent = '已換底層圖片。';
+    });
+  }
+  function wireSlot(slotId, inputId, handler) {
+    var slot = document.getElementById(slotId), input = document.getElementById(inputId);
+    input.addEventListener('change', function (e) {
+      var f = e.target.files && e.target.files[0];
+      e.target.value = '';
+      handler(f);
+    });
+    ['dragenter', 'dragover'].forEach(function (n) {
+      slot.addEventListener(n, function (e) { e.preventDefault(); slot.classList.add('over'); });
+    });
+    ['dragleave', 'drop'].forEach(function (n) {
+      slot.addEventListener(n, function (e) { e.preventDefault(); slot.classList.remove('over'); });
+    });
+    slot.addEventListener('drop', function (e) {
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      handler(f);
+    });
+  }
+  wireSlot('slotTop', 'fileTop', useTopFile);
+  wireSlot('slotBot', 'fileBot', useBotFile);
+  var soundBtn = document.getElementById('btnSound');
+  soundBtn.addEventListener('click', function () {
+    soundOn = !soundOn;
+    soundBtn.setAttribute('aria-pressed', String(soundOn));
+    soundBtn.textContent = '音效：' + (soundOn ? '開' : '關');
+    if (!soundOn) stopSound();
+  });
+
+  /* ---------- GIF export ---------- */
+  var gifUrl = null;
+  var btnGif = document.getElementById('btnGif');
+  var gifOut = document.getElementById('gifOut');
+  var gifImg = document.getElementById('gifImg');
+  var gifNote = document.getElementById('gifNote');
+
+  function tick() { return new Promise(function (r) { setTimeout(r, 0); }); }
+
+  function chan(c, k) { return k === 0 ? (c >> 10) & 31 : k === 1 ? (c >> 5) & 31 : c & 31; }
+
+  function buildPalette(hist) {
+    var all = [], i;
+    for (i = 0; i < 32768; i++) if (hist[i]) all.push(i);
+    var boxes = [all];
+    while (boxes.length < 256) {
+      var bi = -1, bs = 0, bk = 0;
+      for (var b = 0; b < boxes.length; b++) {
+        var box = boxes[b];
+        if (box.length < 2) continue;
+        var mn = [31, 31, 31], mx = [0, 0, 0], tot = 0;
+        for (var j = 0; j < box.length; j++) {
+          var c = box[j]; tot += hist[c];
+          for (var k = 0; k < 3; k++) {
+            var v = chan(c, k);
+            if (v < mn[k]) mn[k] = v;
+            if (v > mx[k]) mx[k] = v;
+          }
+        }
+        for (var k2 = 0; k2 < 3; k2++) {
+          var score = (mx[k2] - mn[k2]) * Math.sqrt(tot);
+          if (score > bs) { bs = score; bi = b; bk = k2; }
+        }
+      }
+      if (bi < 0) break;
+      var src = boxes[bi].slice().sort(function (a, z) { return chan(a, bk) - chan(z, bk); });
+      var total = 0, q;
+      for (q = 0; q < src.length; q++) total += hist[src[q]];
+      var run = 0, mid = 1;
+      for (var m = 0; m < src.length - 1; m++) {
+        run += hist[src[m]]; mid = m + 1;
+        if (run >= total / 2) break;
+      }
+      boxes.splice(bi, 1, src.slice(0, mid), src.slice(mid));
+    }
+    var pal = [];
+    boxes.forEach(function (box) {
+      var r = 0, g = 0, bl = 0, t = 0;
+      box.forEach(function (c) {
+        var n = hist[c]; t += n;
+        r += ((c >> 10) & 31) * n; g += ((c >> 5) & 31) * n; bl += (c & 31) * n;
+      });
+      if (!t) return;
+      var ex = function (v) { v = Math.round(v / t); return (v << 3) | (v >> 2); };
+      pal.push([ex(r), ex(g), ex(bl)]);
+    });
+    return pal;
+  }
+
+  function lzw(ix) {
+    var out = [], cur = 0, bits = 0, size = 9, next = 258, dict = new Map();
+    function emit(c) {
+      cur |= c << bits; bits += size;
+      while (bits >= 8) { out.push(cur & 255); cur >>>= 8; bits -= 8; }
+    }
+    emit(256);
+    var prefix = ix[0];
+    for (var i = 1; i < ix.length; i++) {
+      var k = ix[i], key = (prefix << 8) | k, v = dict.get(key);
+      if (v !== undefined) { prefix = v; continue; }
+      emit(prefix);
+      if (next < 4096) {
+        dict.set(key, next++);
+        if (next - 1 === (1 << size) && size < 12) size++;
+      } else {
+        emit(256); dict.clear(); size = 9; next = 258;
+      }
+      prefix = k;
+    }
+    emit(prefix); emit(257);
+    if (bits > 0) out.push(cur & 255);
+    return out;
+  }
+
+  function writeGif(w, h, frames, pal, delays) {
+    var o = [];
+    function b(v) { o.push(v & 255); }
+    function s(v) { b(v); b(v >> 8); }
+    function str(t) { for (var i = 0; i < t.length; i++) b(t.charCodeAt(i)); }
+    str('GIF89a'); s(w); s(h); b(0xF7); b(0); b(0);
+    for (var i = 0; i < 256; i++) { var p = pal[i] || [0, 0, 0]; b(p[0]); b(p[1]); b(p[2]); }
+    b(0x21); b(0xFF); b(11); str('NETSCAPE2.0'); b(3); b(1); s(0); b(0);
+    frames.forEach(function (fr, fi) {
+      b(0x21); b(0xF9); b(4); b(0x04); s(delays[fi]); b(0); b(0);
+      b(0x2C); s(fr.x); s(fr.y); s(fr.w); s(fr.h); b(0);
+      b(8);
+      var data = lzw(fr.ix);
+      for (var a = 0; a < data.length; a += 255) {
+        var n = Math.min(255, data.length - a);
+        b(n);
+        for (var q = 0; q < n; q++) b(data[a + q]);
+      }
+      b(0);
+    });
+    b(0x3B);
+    return new Uint8Array(o);
+  }
+
+  /* Frames are stored as changed rectangles only, so long recordings stay small. */
+  function changedRect(prev, cur, W, H) {
+    var a = new Uint32Array(prev.buffer, prev.byteOffset, prev.length >> 2);
+    var b = new Uint32Array(cur.buffer, cur.byteOffset, cur.length >> 2);
+    var x0 = W, x1 = -1, y0 = H, y1 = -1;
+    for (var y = 0; y < H; y++) {
+      var o = y * W;
+      for (var x = 0; x < W; x++) {
+        if (a[o + x] !== b[o + x]) {
+          if (x < x0) x0 = x;
+          if (x > x1) x1 = x;
+          if (y < y0) y0 = y;
+          if (y > y1) y1 = y;
+        }
+      }
+    }
+    if (x1 < 0) return null;
+    var rw = x1 - x0 + 1, rh = y1 - y0 + 1, px = new Uint8ClampedArray(rw * rh * 4);
+    for (var yy = 0; yy < rh; yy++) {
+      px.set(cur.subarray(((y0 + yy) * W + x0) * 4, ((y0 + yy) * W + x0 + rw) * 4), yy * rw * 4);
+    }
+    return { x: x0, y: y0, w: rw, h: rh, px: px };
+  }
+
+  var BAY = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  function quantize(fr, lut, pal) {
+    var d = fr.px, rw = fr.w, rh = fr.h, pix = new Uint8Array(rw * rh), n = 0;
+    for (var y = 0; y < rh; y++) {
+      var gy = (fr.y + y) & 3;
+      for (var x = 0; x < rw; x++, n++) {
+        var i = n * 4, t = (BAY[(gy << 2) | ((fr.x + x) & 3)] - 7.5) * 0.9;
+        var r = d[i] + t, g = d[i + 1] + t, b = d[i + 2] + t;
+        r = r < 0 ? 0 : r > 255 ? 255 : r;
+        g = g < 0 ? 0 : g > 255 ? 255 : g;
+        b = b < 0 ? 0 : b > 255 ? 255 : b;
+        var c = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3), m = lut[c];
+        if (m < 0) {
+          var cr = ((c >> 10) & 31) * 8 + 4, cg = ((c >> 5) & 31) * 8 + 4, cb = (c & 31) * 8 + 4;
+          var best = 1e9; m = 0;
+          for (var z = 0; z < pal.length; z++) {
+            var dr = pal[z][0] - cr, dg = pal[z][1] - cg, db = pal[z][2] - cb;
+            var dist = dr * dr + dg * dg + db * db;
+            if (dist < best) { best = dist; m = z; }
+          }
+          lut[c] = m;
+        }
+        pix[n] = m;
+      }
+    }
+    return pix;
+  }
+  function patchFrame(curIx, W, fr, pix) {
+    var rw = fr.w, rh = fr.h, x0 = rw, x1 = -1, y0 = rh, y1 = -1;
+    for (var y = 0; y < rh; y++) {
+      var co = (fr.y + y) * W + fr.x, po = y * rw;
+      for (var x = 0; x < rw; x++) {
+        if (curIx[co + x] !== pix[po + x]) {
+          if (x < x0) x0 = x;
+          if (x > x1) x1 = x;
+          if (y < y0) y0 = y;
+          if (y > y1) y1 = y;
+        }
+      }
+    }
+    if (x1 < 0) return null;
+    var nw = x1 - x0 + 1, nh = y1 - y0 + 1, out = new Uint8Array(nw * nh);
+    for (var yy = 0; yy < nh; yy++) {
+      out.set(pix.subarray((y0 + yy) * rw + x0, (y0 + yy) * rw + x0 + nw), yy * nw);
+    }
+    for (var y2 = 0; y2 < rh; y2++) {
+      curIx.set(pix.subarray(y2 * rw, y2 * rw + rw), (fr.y + y2) * W + fr.x);
+    }
+    return { x: fr.x + x0, y: fr.y + y0, w: nw, h: nh, ix: out };
+  }
+
+  async function encodeGif(frames, delays0, W, H, progress) {
+    var hist = new Uint32Array(32768), i, p;
+    for (i = 0; i < frames.length; i++) {
+      var d = frames[i].px, step = i === 0 ? 16 : 32;
+      for (p = 0; p < d.length; p += step) hist[((d[p] >> 3) << 10) | ((d[p + 1] >> 3) << 5) | (d[p + 2] >> 3)]++;
+    }
+    var pal = buildPalette(hist);
+    var lut = new Int16Array(32768).fill(-1);
+    var curIx = null, outF = [], outD = [];
+    for (i = 0; i < frames.length; i++) {
+      if (progress) progress(i + 1, frames.length);
+      var pix = quantize(frames[i], lut, pal), fr;
+      if (!curIx) { curIx = pix.slice(); fr = { x: 0, y: 0, w: W, h: H, ix: pix }; }
+      else fr = patchFrame(curIx, W, frames[i], pix);
+      if (fr) { outF.push(fr); outD.push(delays0[i]); }
+      else if (outD.length) outD[outD.length - 1] += delays0[i];
+      frames[i] = null;
+      if (i % 4 === 3) await tick();
+    }
+    return { bytes: writeGif(W, H, outF, pal, outD), delays: outD };
+  }
+
+  var REC_FPS = 20, REC_DELAY = 5, REC_MAX = 600, REC_BUDGET = 220 * 1048576, IDLE_MAX = 80;
+  var rec = null;
+
+  function capture() {
+    if (!rec) return;
+    rec.sx.drawImage(cv, 0, 0, rec.w, rec.h);
+    var d = rec.sx.getImageData(0, 0, rec.w, rec.h).data;
+    if (!rec.last) {
+      rec.frames.push({ x: 0, y: 0, w: rec.w, h: rec.h, px: d });
+      rec.delays.push(REC_DELAY); rec.last = d; rec.bytes += d.length;
+      return;
+    }
+    var fr = changedRect(rec.last, d, rec.w, rec.h);
+    if (!fr) {
+      var n = rec.delays.length - 1;
+      rec.delays[n] = Math.min(IDLE_MAX, rec.delays[n] + REC_DELAY);
+      return;
+    }
+    rec.frames.push(fr); rec.delays.push(REC_DELAY); rec.last = d; rec.bytes += fr.px.length;
+    btnGif.textContent = '停止並輸出 GIF（' + rec.frames.length + ' 幀）';
+    if (rec.frames.length >= REC_MAX || rec.bytes > REC_BUDGET) finishRecording();
+  }
+  function startRecording() {
+    var W = +document.getElementById('gifQ').value || 720, H = Math.round(W * LH / LW);
+    var sc = document.createElement('canvas'); sc.width = W; sc.height = H;
+    var sx = sc.getContext('2d', { willReadFrequently: true });
+    sx.imageSmoothingQuality = 'high';
+    rec = { w: W, h: H, sx: sx, frames: [], delays: [], last: null, bytes: 0, timer: 0 };
+    recording = true;
+    resetPaper();
+    hintOn = false;
+    render(performance.now());
+    capture();
+    rec.timer = setInterval(capture, 1000 / REC_FPS);
+    btnGif.textContent = '停止並輸出 GIF（1 幀）';
+    statusEl.textContent = '錄製中：紙已重新貼好，從完整的畫面開始撕，撕完按「停止並輸出 GIF」。';
+  }
+  async function finishRecording() {
+    if (!rec) return;
+    var r = rec; rec = null;
+    clearInterval(r.timer);
+    recording = false; busy = true; btnGif.disabled = true;
+    try {
+      if (r.frames.length < 2) {
+        statusEl.textContent = '還沒有撕紙動作，請先撕再停止。';
+        return;
+      }
+      r.delays[0] = Math.max(r.delays[0], 300);
+      r.delays[r.delays.length - 1] = Math.max(r.delays[r.delays.length - 1], 120);
+      statusEl.textContent = '正在編碼 GIF…';
+      await tick();
+      var res = await encodeGif(r.frames, r.delays, r.w, r.h, function (i, n) {
+        btnGif.textContent = '編碼 ' + i + '/' + n;
+      });
+      if (gifUrl) URL.revokeObjectURL(gifUrl);
+      gifUrl = URL.createObjectURL(new Blob([res.bytes], { type: 'image/gif' }));
+      gifImg.src = gifUrl;
+      gifOut.hidden = false;
+      var secs = res.delays.reduce(function (a, v) { return a + v; }, 0) / 100;
+      gifNote.textContent = r.w + ' 像素寬，共 ' + secs.toFixed(1) + ' 秒，' + (res.bytes.length / 1048576).toFixed(1) + ' MB，開頭完整畫面停留 ' + (res.delays[0] / 100).toFixed(1) + ' 秒。電腦在圖上按右鍵選「另存圖片」，手機長按圖片儲存。';
+      statusEl.textContent = 'GIF 已完成，往下看。';
+      gifOut.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'nearest' });
+    } catch (err) {
+      statusEl.textContent = '輸出失敗，請改選「標準」畫質再試，或改用螢幕錄影。';
+    } finally {
+      busy = false; btnGif.disabled = false; btnGif.textContent = '錄製 GIF';
+      requestRender();
+    }
+  }
+  btnGif.addEventListener('click', function () {
+    if (recording) finishRecording();
+    else if (!busy && !tear) startRecording();
+  });
+
+  /* ---------- tear mode ---------- */
+  var modeFull = document.getElementById('modeFull');
+  var modeStrip = document.getElementById('modeStrip');
+  var stripWEl = document.getElementById('stripW');
+  function setMode(strip) {
+    if (tear) return;
+    stripMode = strip;
+    modeFull.setAttribute('aria-pressed', String(!strip));
+    modeStrip.setAttribute('aria-pressed', String(strip));
+    stripWEl.disabled = !strip;
+    if (!recording && !busy) statusEl.textContent = strip ? '從紙的邊緣橫著往內拉，撕下一小條。' : '從紙邊或角落按住，往內拉。';
+    requestRender();
+  }
+  modeFull.addEventListener('click', function () { setMode(false); });
+  modeStrip.addEventListener('click', function () { setMode(true); });
+  stripWEl.addEventListener('input', function () { stripW = +stripWEl.value; });
+
+  /* ---------- boot ---------- */
+  allocate();
+  makeGrain();
+  buildUnder();
+  buildPaper();
+  updateMeta();
+  requestRender();
+
+  if (document.fonts && document.fonts.load) {
+    Promise.all([
+      document.fonts.load('900 100px "Noto Sans TC"', '撕開從紙邊往內拉底下的畫面就會露出來'),
+      document.fonts.load('500 22px "Noto Sans TC"', '從紙邊往內拉')
+    ]).then(function () {
+      if (!topImg && tears === 0 && !tear) { buildPaper(); requestRender(); }
+    }).catch(function () {});
+  }
+})();
+</script>
+
+</body></html>
